@@ -90,7 +90,7 @@ public:
   /// Map between imaging times and clone poses (q_GtoIi, p_IiinG)
   std::map<double, std::shared_ptr<ov_type::PoseJPL>> _clones_IMU;
 
-  /// Our current set of SLAM features (3d positions)
+  /// Our current set of SLAM features (3d positions), indexed by feat_ID (?)
   std::unordered_map<size_t, std::shared_ptr<ov_type::Landmark>> _features_SLAM;
 
   /// Time offset base IMU to camera (t_imu = t_cam + t_off)

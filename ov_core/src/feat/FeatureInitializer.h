@@ -91,7 +91,7 @@ public:
   /**
    * @brief Uses a linear triangulation to get initial estimate for the feature
    *
-   * The derivations for this method can be found in the @ref featinit-linear documentation page.
+   * The derivations for this method can be found in the @ref featinit-linear documentation page ("3D Cartesian Triangulation").
    *
    * @param feat Pointer to feature
    * @param clonesCAM Map between camera ID to map of timestamp to camera pose estimate (rotation from global to camera, position of camera
@@ -103,7 +103,7 @@ public:
   /**
    * @brief Uses a linear triangulation to get initial estimate for the feature, treating the anchor observation as a true bearing.
    *
-   * The derivations for this method can be found in the @ref featinit-linear-1d documentation page.
+   * The derivations for this method can be found in the @ref featinit-linear-1d documentation page ("1D Depth Triangulation").
    * This function should be used if you want speed, or know your anchor bearing is reasonably accurate.
    *
    * @param feat Pointer to feature

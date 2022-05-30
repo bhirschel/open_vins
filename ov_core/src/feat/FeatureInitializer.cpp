@@ -25,6 +25,8 @@ using namespace ov_core;
 
 bool FeatureInitializer::single_triangulation(Feature *feat, std::unordered_map<size_t, std::unordered_map<double, ClonePose>> &clonesCAM) {
 
+  //TODO(bhirschel) Possibly add stereo feature correspondences here to the linear equation to solve the triangulation problem
+
   // Total number of measurements
   // Also set the first measurement to be the anchor frame
   int total_meas = 0;

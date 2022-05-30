@@ -191,13 +191,13 @@ protected:
   /// Last set of images (use map so all trackers render in the same order)
   std::map<size_t, cv::Mat> img_last;
 
-  /// Last set of images (use map so all trackers render in the same order)
+  /// Last set of image masks (use map so all trackers render in the same order)
   std::map<size_t, cv::Mat> img_mask_last;
 
-  /// Last set of tracked points
+  /// Last set of tracked points, indexed by cam ID
   std::unordered_map<size_t, std::vector<cv::KeyPoint>> pts_last;
 
-  /// Set of IDs of each current feature in the database
+  /// Set of IDs of each current feature in the database, indexed by cam ID
   std::unordered_map<size_t, std::vector<size_t>> ids_last;
 
   /// Master ID for this tracker (atomic to allow for multi-threading)

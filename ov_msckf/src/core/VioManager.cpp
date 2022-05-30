@@ -298,9 +298,15 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
   // MSCKF features and KLT tracks that are SLAM features
   //===================================================================================
 
+  // features that are not updated more recently than the current filter state timestamp
+  std::vector<std::shared_ptr<Feature>> feats_lost;
+  // features that existed back at the marginalization timestep
+  std::vector<std::shared_ptr<Feature>> feats_marg;
+  // features that existed at the marg timestep and have reached max track length
+  std::vector<std::shared_ptr<Feature>> feats_slam;
+
   // Now, lets get all features that should be used for an update that are lost in the newest frame
   // We explicitly request features that have not been deleted (used) in another update step
-  std::vector<std::shared_ptr<Feature>> feats_lost, feats_marg, feats_slam;
   feats_lost = trackFEATS->get_feature_database()->features_not_containing_newer(state->_timestamp, false, true);
 
   // Don't need to get the oldest features until we reach our max number of clones
@@ -349,7 +355,11 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
     // See if any of our camera's reached max track
     bool reached_max = false;
     for (const auto &cams : (*it2)->timestamps) {
+      // iterating the map <camID, vec<timestamps>> yields an std::pair<camID, vec<timestamps>>, so the length of the
+      // timestamps vector indicates the possible maximal number of clones
       if ((int)cams.second.size() > state->_options.max_clone_size) {
+        // this means this camera tracks this feature for the specified max n.o. times
+        // TODO(bhirschel) does not require the detections to be uninterrupted
         reached_max = true;
         break;
       }
@@ -401,6 +411,8 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
     if (feat2 != nullptr)
       feats_slam.push_back(feat2);
     assert(landmark.second->_unique_camera_id != -1);
+    // True if the current iterated landmark's camera is also part of the sensor_ids of this CameraData message
+    // TODO(bhirschel) is this correct? Aren't those features actually tracked in the current frame and should therefore not be marginalized out?
     bool current_unique_cam =
         std::find(message.sensor_ids.begin(), message.sensor_ids.end(), landmark.second->_unique_camera_id) != message.sensor_ids.end();
     if (feat2 == nullptr && current_unique_cam)
@@ -413,6 +425,7 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
   StateHelper::marginalize_slam(state);
 
   // Separate our SLAM features into new ones, and old ones
+  // TODO(bhirschel) strange way to do this if feats_slam previously contained only the new ones anyway?! Separate them there
   std::vector<std::shared_ptr<Feature>> feats_slam_DELAYED, feats_slam_UPDATE;
   for (size_t i = 0; i < feats_slam.size(); i++) {
     if (state->_features_SLAM.find(feats_slam.at(i)->featid) != state->_features_SLAM.end()) {

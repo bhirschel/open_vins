@@ -256,6 +256,7 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
   //===================================================================================
 
   // If any of our masks are empty, that means we didn't have enough to do ransac, so just return
+  // TODO(bhirschel) if it is "any" why is "all" enforced
   if (mask_ll.empty() && mask_rr.empty()) {
     img_last[cam_id_left] = img_left;
     img_last[cam_id_right] = img_right;
@@ -715,6 +716,9 @@ void TrackKLT::perform_matching(const std::vector<cv::Mat> &img0pyr, const std::
   double max_focallength = std::max(max_focallength_img0, max_focallength_img1);
   cv::findFundamentalMat(pts0_n, pts1_n, cv::FM_RANSAC, 1.0 / max_focallength, 0.999, mask_rsc);
 
+  /* The ouput of the fundamental matrix here is actually not used. mask_rsc has the same length as pts and shows
+   * whether a point was considered an outlier (0) or an inlier (1) */
+
   // Loop through and record only ones that are valid
   for (size_t i = 0; i < mask_klt.size(); i++) {
     auto mask = (uchar)((i < mask_klt.size() && mask_klt[i] && i < mask_rsc.size() && mask_rsc[i]) ? 1 : 0);
@@ -723,7 +727,7 @@ void TrackKLT::perform_matching(const std::vector<cv::Mat> &img0pyr, const std::
 
   // Copy back the updated positions
   for (size_t i = 0; i < pts0.size(); i++) {
-    kpts0.at(i).pt = pts0.at(i);
+    kpts0.at(i).pt = pts0.at(i); // TODO(bhirschel) pts0 shouldn't have been changed since last time?
     kpts1.at(i).pt = pts1.at(i);
   }
 }
