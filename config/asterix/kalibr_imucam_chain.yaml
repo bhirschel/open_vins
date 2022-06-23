@@ -1,0 +1,41 @@
+%YAML:1.0
+
+cam0:
+  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
+    - [0.99958955161323336182, -0.0052400125367588864088, 0.028165059457944492717, -0.026411010537556314207]
+    - [0.0060517194887339675924, 0.9995665259105149521, -0.028812097639940596844, 0.0054669636976169724314]
+    - [-0.028001874881597056934, 0.028970718800167912199, 0.99918796652847901065, 0.0017882358833759149296]
+    - [0.0, 0.0, 0.0, 1.0]
+  cam_overlaps: [1,2]
+  camera_model: pinhole
+  distortion_coeffs: [0.027935376100044797, 0.03511131773175079, -0.00788041398845487, 0.006677041791795516]
+  distortion_model: radtan
+  intrinsics: [399.0024581473677, 399.107713700555, 330.5502335903661, 232.34356498772945] #fu, fv, cu, cv
+  resolution: [640, 480]
+  rostopic: /rgbd_camera/infra1/image_rect_raw
+cam1:
+  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
+    - [0.99997442, -0.00709113, 0.00093446, 0.06862331]
+    - [0.00711032, 0.99972292, -0.02243955, 0.00585427]
+    - [-0.00077508, 0.02244562, 0.99974776, 0.00103589]
+    - [0.0, 0.0, 0.0, 1.0]
+  cam_overlaps: [0,2]
+  camera_model: pinhole
+  distortion_coeffs: [0.024038829337909587,0.020987576908502052,-0.004443037842424018,0.0034647570089133004]
+  distortion_model: radtan
+  intrinsics: [400.0096559995078, 399.6195836605581, 319.73621371469375, 234.61719411841432] #fu, fv, cu, cv
+  resolution: [640, 480]
+  rostopic: /rgbd_camera/infra2/image_rect_raw
+cam2:
+  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
+    - [0.9999, -0.0059, 0.0115, 0.0321]
+    - [0.0061, 0.9998, -0.0206, 0.0055]
+    - [-0.0114, 0.0207, 0.9997, -0.0007]
+    - [0.000, 0.000, 0.000, 1.000]
+  cam_overlaps: [0, 1]
+  camera_model: pinhole
+  distortion_coeffs: [-0.02474751678399497, 0.06434233641753231, -0.004630916813965159, 0.0037696969307453904]
+  distortion_model: radtan
+  intrinsics: [667.7275199797567, 665.3604136944848, 663.4931075826225, 349.86691301484524] #fu, fv, cu, cv
+  resolution: [1280, 720]
+  rostopic: /rgbd_camera/color/image_raw
