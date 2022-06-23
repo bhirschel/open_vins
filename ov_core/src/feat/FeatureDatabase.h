@@ -29,6 +29,7 @@
 
 #include "Feature.h"
 #include "utils/print.h"
+#include "utils/colors.h"
 
 namespace ov_core {
 
@@ -404,6 +405,35 @@ public:
       }
     }
     // PRINT_DEBUG("feat db = %d -> %d\n", sizebefore, (int)features_idlookup.size() << std::endl;
+  }
+
+  void print_track_lengths() {
+    std::lock_guard<std::mutex> lck(mtx);
+
+    // Counts the n.o. that have reached a tracked length given as index
+    std::unordered_map<size_t, size_t> track_lengths;
+
+    for (const auto &feat : features_idlookup) {
+      size_t track_length = 0;
+      for (const auto &times : feat.second->timestamps) {
+        if (times.second.size() > track_length)
+          track_length = times.second.size();
+      }
+      auto ret = track_lengths.insert(std::pair<size_t, size_t>(track_length, 1));
+      if (!ret.second) {
+        size_t val = ret.first->second;
+        ret.first->second = val + 1;
+      }
+    }
+//    std::sort(track_lengths.begin(), track_lengths.end(), [](size_t &a, size_t &b) {
+//      return a > b;
+//    });
+
+    PRINT_DEBUG(WHITE "N.o. features per track length:\n" RESET);
+    PRINT_DEBUG(WHITE "Length - feats\n" RESET);
+    for (const auto &track_length: track_lengths) {
+      PRINT_DEBUG(WHITE "%6d - %6d\n" RESET, track_length.first, track_length.second);
+    }
   }
 
 protected:

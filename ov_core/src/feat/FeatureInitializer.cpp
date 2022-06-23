@@ -99,6 +99,13 @@ bool FeatureInitializer::single_triangulation(Feature *feat, std::unordered_map<
   // Then set the flag for bad (i.e. set z-axis to nan)
   if (std::abs(condA) > _options.max_cond_number || p_f(2, 0) < _options.min_dist || p_f(2, 0) > _options.max_dist ||
       std::isnan(p_f.norm())) {
+    std::stringstream ss;
+    ss << "res = " << "std::abs(condA) > _options.max_cond_number ("
+    << std::abs(condA) << " > " << _options.max_cond_number
+    << ") || p_f(2, 0) < _options.min_dist (" << p_f(2, 0) << " < " << _options.min_dist
+    << ") || p_f(2, 0) > _options.max_dist (" << p_f(2, 0) << " > " << _options.max_dist
+    << ") || std::isnan(p_f.norm()) (" << std::isnan(p_f.norm()) << ")" << std::endl;
+//    PRINT_DEBUG(WHITE "Triangulation failed: %s" RESET, ss.str().c_str());
     return false;
   }
 

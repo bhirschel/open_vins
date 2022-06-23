@@ -428,12 +428,27 @@ void ROS1Visualizer::callback_monocular(const sensor_msgs::ImageConstPtr &msg0, 
   ov_core::CameraData message;
   message.timestamp = cv_ptr->header.stamp.toSec();
   message.sensor_ids.push_back(cam_id0);
-  message.images.push_back(cv_ptr->image.clone());
+  if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+    cv::Mat dst_img;
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+    cv::rotate(cv_ptr->image.clone(), dst_img, flag);
+    message.images.push_back(dst_img);
+  } else {
+    message.images.push_back(cv_ptr->image.clone());
+  }
 
   // Load the mask if we are using it, else it is empty
   // TODO: in the future we should get this from external pixel segmentation
   if (_app->get_params().use_mask) {
-    message.masks.push_back(_app->get_params().masks.at(cam_id0));
+    if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+      cv::Mat rotated_mask, inverted_mask;
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id0), rotated_mask, flag);
+      cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
+      message.masks.push_back(inverted_mask);
+    } else {
+      message.masks.push_back(_app->get_params().masks.at(cam_id0));
+    }
   } else {
     message.masks.push_back(cv::Mat::zeros(cv_ptr->image.rows, cv_ptr->image.cols, CV_8UC1));
   }
@@ -478,14 +493,44 @@ void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, con
   message.timestamp = cv_ptr0->header.stamp.toSec();
   message.sensor_ids.push_back(cam_id0);
   message.sensor_ids.push_back(cam_id1);
-  message.images.push_back(cv_ptr0->image.clone());
-  message.images.push_back(cv_ptr1->image.clone());
+  if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+    cv::Mat dst_img;
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+    cv::rotate(cv_ptr0->image.clone(), dst_img, flag);
+    message.images.push_back(dst_img);
+  } else {
+    message.images.push_back(cv_ptr0->image.clone());
+  }
+  if(_app->get_params().image_stream_rotations.at(cam_id1) > 0 && _app->get_params().image_stream_rotations.at(cam_id1) < 4) {
+    cv::Mat dst_img;
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id1 ) - 1);
+    cv::rotate(cv_ptr1->image.clone(), dst_img, flag);
+    message.images.push_back(dst_img);
+  } else {
+    message.images.push_back(cv_ptr1->image.clone());
+  }
 
   // Load the mask if we are using it, else it is empty
   // TODO: in the future we should get this from external pixel segmentation
   if (_app->get_params().use_mask) {
-    message.masks.push_back(_app->get_params().masks.at(cam_id0));
-    message.masks.push_back(_app->get_params().masks.at(cam_id1));
+    if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+      cv::Mat rotated_mask, inverted_mask;
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id0), rotated_mask, flag);
+      cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
+      message.masks.push_back(inverted_mask);
+    } else {
+      message.masks.push_back(_app->get_params().masks.at(cam_id0));
+    }
+    if(_app->get_params().image_stream_rotations.at(cam_id1) > 0 && _app->get_params().image_stream_rotations.at(cam_id1) < 4) {
+      cv::Mat rotated_mask, inverted_mask;
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id1 ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id1), rotated_mask, flag);
+      cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
+      message.masks.push_back(inverted_mask);
+    } else {
+      message.masks.push_back(_app->get_params().masks.at(cam_id1));
+    }
   } else {
     // message.masks.push_back(cv::Mat(cv_ptr0->image.rows, cv_ptr0->image.cols, CV_8UC1, cv::Scalar(255)));
     message.masks.push_back(cv::Mat::zeros(cv_ptr0->image.rows, cv_ptr0->image.cols, CV_8UC1));

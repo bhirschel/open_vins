@@ -205,6 +205,9 @@ struct VioManagerOptions {
   /// Mask images for each camera
   std::map<size_t, cv::Mat> masks;
 
+  /// Rotation of each camera as preprocessing (0=0°, 1=90°, 2=180°, 3=270°), indexed by cam ID
+  std::map<size_t, uint8_t> image_stream_rotations;
+
   /**
    * @brief This function will load and print all state parameters (e.g. sensor extrinsics)
    * This allows for visual checking that everything was loaded properly from ROS/CMD parsers.
@@ -248,14 +251,24 @@ struct VioManagerOptions {
         matrix_wh.at(1) /= (downsample_cameras) ? 2.0 : 1.0;
         std::pair<int, int> wh(matrix_wh.at(0), matrix_wh.at(1));
 
+        // Image stream rotation
+        std::vector<int> rotation = {0};
+        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "rotation", rotation, false);
+        image_stream_rotations.insert({i, rotation.at(0)});
+
         // Extrinsics
         Eigen::Matrix4d T_CtoI = Eigen::Matrix4d::Identity();
         parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "T_imu_cam", T_CtoI);
 
         // Load these into our state
         Eigen::Matrix<double, 7, 1> cam_eigen;
+        // Take the rotational part of the cam-to-IMU transformation matrix, transpose it to IMU-to-cam, convert it to
+        // quaternion and save the four values to cam_eigen(0)-cam_eigen(3)
         cam_eigen.block(0, 0, 4, 1) = ov_core::rot_2_quat(T_CtoI.block(0, 0, 3, 3).transpose());
+        // Take the negative rotational part of the IMU-to-cam transformation and multiply it with the positional vector
+        // of the IMU in camera coordinates, resulting in the coordinates of the camera in the IMU frame
         cam_eigen.block(4, 0, 3, 1) = -T_CtoI.block(0, 0, 3, 3).transpose() * T_CtoI.block(0, 3, 3, 1);
+        // --> state is composed of rotation from IMU to cam and of position of cam in IMU frame
 
         // Create intrinsics model
         if (dist_model == "equidistant") {

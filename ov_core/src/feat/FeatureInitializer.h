@@ -95,7 +95,7 @@ public:
    *
    * @param feat Pointer to feature
    * @param clonesCAM Map between camera ID to map of timestamp to camera pose estimate (rotation from global to camera, position of camera
-   * in global frame)
+   * in global frame). Map that stores per camID a map that stores per timestamp the camera pose
    * @return Returns false if it fails to triangulate (based on the thresholds)
    */
   bool single_triangulation(Feature *feat, std::unordered_map<size_t, std::unordered_map<double, ClonePose>> &clonesCAM);

@@ -42,6 +42,7 @@ void UpdaterSLAM::delayed_init(std::shared_ptr<State> state, std::vector<std::sh
   }
 
   // 1. Clean all feature measurements and make sure they all have valid clone times
+  PRINT_DEBUG(BLUE "[UPDATER-SLAM] slam feats initially: %d \n" RESET, feature_vec.size());
   auto it0 = feature_vec.begin();
   while (it0 != feature_vec.end()) {
 
@@ -62,6 +63,7 @@ void UpdaterSLAM::delayed_init(std::shared_ptr<State> state, std::vector<std::sh
       it0++;
     }
   }
+  PRINT_DEBUG(BLUE "[UPDATER-SLAM] slam feats after measurement cleaning: %d \n" RESET, feature_vec.size());
   rT1 = boost::posix_time::microsec_clock::local_time();
 
   // 2. Create vector of cloned *CAMERA* poses at each of our clone timesteps
@@ -110,6 +112,7 @@ void UpdaterSLAM::delayed_init(std::shared_ptr<State> state, std::vector<std::sh
     }
     it1++;
   }
+  PRINT_DEBUG(BLUE "[UPDATER-SLAM] slam feats after triangulation: %d \n" RESET, feature_vec.size());
   rT2 = boost::posix_time::microsec_clock::local_time();
 
   // 4. Compute linear system for each feature, nullspace project, and reject

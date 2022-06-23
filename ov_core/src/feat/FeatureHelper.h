@@ -129,7 +129,7 @@ public:
         if (campairs.second.size() < 2)
           continue;
 
-        // Now lets calculate the disparity
+        // Now lets calculate the disparity (temporal disparity between the first time this image is seen to the last time)
         size_t camid = campairs.first;
         Eigen::Vector2f uv0 = feat.second->uvs.at(camid).at(0).block(0, 0, 2, 1);
         Eigen::Vector2f uv1 = feat.second->uvs.at(camid).at(campairs.second.size() - 1).block(0, 0, 2, 1);

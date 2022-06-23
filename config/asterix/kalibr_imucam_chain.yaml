@@ -1,41 +1,104 @@
 %YAML:1.0
 
-cam0:
+# Intel Realsense D455 calibration according to https://www.intelrealsense.com/wp-content/uploads/2022/03/Intel-RealSense-D400-Series-Datasheet-March-2022.pdf p. 137
+# using ROS coordinate frame convention https://www.ros.org/reps/rep-0103.html#id19
+cam0: # Front RGBD cam infra2 = left view (because camera is mounted upside down)
   T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
-    - [0.99958955161323336182, -0.0052400125367588864088, 0.028165059457944492717, -0.026411010537556314207]
-    - [0.0060517194887339675924, 0.9995665259105149521, -0.028812097639940596844, 0.0054669636976169724314]
-    - [-0.028001874881597056934, 0.028970718800167912199, 0.99918796652847901065, 0.0017882358833759149296]
-    - [0.0, 0.0, 0.0, 1.0]
-  cam_overlaps: [1,2]
+    #    - [1.0,       -0.006,     0.011,    0.087]
+    #    - [0.006,     1.0,        -0.018,   0.056]
+    #    - [-0.011,    0.018,      1.0,      -0.069]
+    #    - [0.0,       0.0,        0.0,      1.0]
+    - [ 0.0,        -0.7661,    0.6427,    0.117 ] # to base_link IMU
+    - [ -1.0,       0.0,        0.0,       0.027 ]
+    - [ 0.0,        -0.6427,    -0.7661,   0.343 ]
+    - [ 0.0,        0.0,        0.0,       1.0 ]
+  cam_overlaps: [0]
   camera_model: pinhole
-  distortion_coeffs: [0.027935376100044797, 0.03511131773175079, -0.00788041398845487, 0.006677041791795516]
+  distortion_coeffs: [0, 0, 0, 0]
   distortion_model: radtan
-  intrinsics: [399.0024581473677, 399.107713700555, 330.5502335903661, 232.34356498772945] #fu, fv, cu, cv
+  intrinsics: [398.279, 404.623, 321.272, 227.609] #fu, fv, cu, cv
   resolution: [640, 480]
-  rostopic: /rgbd_camera/infra1/image_rect_raw
-cam1:
+  rotation: 2
+  rostopic: /front_rgbd_cam/infra2/image_rect_raw
+cam1: # Front RGBD cam infra2 = right view (because camera is mounted upside down)
   T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
-    - [0.99997442, -0.00709113, 0.00093446, 0.06862331]
-    - [0.00711032, 0.99972292, -0.02243955, 0.00585427]
-    - [-0.00077508, 0.02244562, 0.99974776, 0.00103589]
-    - [0.0, 0.0, 0.0, 1.0]
-  cam_overlaps: [0,2]
+#    - [1.0,       -0.005,     0.020,    -0.015] # values are taken from online calibration after several runs with initial guess from D455 handheld calibration
+#    - [0.005,     1.0,        -0.016,   0.047]
+#    - [-0.020,    0.016,      1.0,      -0.063]
+#    - [0.0,       0.0,        0.0,      1.0]
+    - [ 0.0,        -0.7661,    0.6427,    0.117 ] # to base_link IMU
+    - [ -1.0,       0.0,        0.0,       -0.067 ]
+    - [ 0.0,        -0.6427,    -0.7661,   0.343 ]
+    - [ 0.0,        0.0,        0.0,       1.0 ]
+  cam_overlaps: [1]
   camera_model: pinhole
-  distortion_coeffs: [0.024038829337909587,0.020987576908502052,-0.004443037842424018,0.0034647570089133004]
+  distortion_coeffs: [0, 0, 0, 0]
   distortion_model: radtan
-  intrinsics: [400.0096559995078, 399.6195836605581, 319.73621371469375, 234.61719411841432] #fu, fv, cu, cv
+  intrinsics: [394.698, 403.062, 325.154, 224.993] #fu, fv, cu, cv
   resolution: [640, 480]
-  rostopic: /rgbd_camera/infra2/image_rect_raw
-cam2:
-  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
-    - [0.9999, -0.0059, 0.0115, 0.0321]
-    - [0.0061, 0.9998, -0.0206, 0.0055]
-    - [-0.0114, 0.0207, 0.9997, -0.0007]
-    - [0.000, 0.000, 0.000, 1.000]
-  cam_overlaps: [0, 1]
-  camera_model: pinhole
-  distortion_coeffs: [-0.02474751678399497, 0.06434233641753231, -0.004630916813965159, 0.0037696969307453904]
-  distortion_model: radtan
-  intrinsics: [667.7275199797567, 665.3604136944848, 663.4931075826225, 349.86691301484524] #fu, fv, cu, cv
-  resolution: [1280, 720]
-  rostopic: /rgbd_camera/color/image_raw
+  rotation: 2
+  rostopic: /front_rgbd_cam/infra1/image_rect_raw
+#cam2: # Back RGBD cam infra2 = left view (because camera is mounted upside down)
+#  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
+#    - [0.0,           0.5,        -0.866,     -0.108] # by hand
+#    - [1.0,           0.0,        0.0,        -0.127]
+#    - [0.0,           -0.866,     -0.5,       0.348]
+#    - [0.0,           0.0,        0.0,        1.0]
+#  cam_overlaps: [3]
+#  camera_model: pinhole
+#  distortion_coeffs: [0.024038829337909587,0.020987576908502052,-0.004443037842424018,0.0034647570089133004]
+#  distortion_model: radtan
+#  intrinsics: [398.279, 404.623, 321.272, 227.609] #fu, fv, cu, cv
+#  resolution: [640, 480]
+#  rotation: 2
+#  rostopic: /back_rgbd_cam/infra2/image_rect_raw
+#cam3: # Back RGBD cam infra1 = right view (because camera is mounted upside down)
+#  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
+#    - [0.0,           0.5,        -0.866,     -0.108] # by hand
+#    - [1.0,           0.0,        0.0,        -0.033]
+#    - [0.0,           -0.866,     -0.5,       0.348]
+#    - [0.0,           0.0,        0.0,        1.0]
+#  cam_overlaps: [2]
+#  camera_model: pinhole
+#  distortion_coeffs: [0.027935376100044797, 0.03511131773175079, -0.00788041398845487, 0.006677041791795516]
+#  distortion_model: radtan
+#  intrinsics: [394.698, 403.062, 325.154, 224.993] #fu, fv, cu, cv
+#  resolution: [640, 480]
+#  rotation: 2
+#  rostopic: /back_rgbd_cam/infra1/image_rect_raw
+#cam0: # left fisheye
+#  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
+##      - [0.9999920,       -0.0036065,     0.0017332,      -0.005] # values from tf
+##      - [-0.0036065,      -0.6247491,     0.7808173,      0.108]
+##      - [-0.0017332,      -0.7808173,     -0.6247571,     -0.099]
+##      - [0.0,             0.0,            0.0,            1.0]
+#    - [1,       0,      0,       0.034] # base_link IMU
+#    - [0,       0,      1,       0.0]
+#    - [0,       -1,     0,       0.456]
+#    - [0.0,             0.0,            0.0,            1.0]
+#  cam_overlaps: [1]
+#  camera_model: pinhole
+#  distortion_coeffs: [-0.25005483726150773, 0.15486545863797438, 0.0006619539678191391, 0.004799650294887792]
+#  distortion_model: equidistant
+#  intrinsics: [1280.9434853010955, 1280.346616094328, 744.18018744745, 749.338173173202] # xi: 1.7503827001298708
+#  resolution: [1504, 1504]
+#  rotation: 3
+#  rostopic: /camera360/left/image_raw
+#cam1: # right fisheye
+#  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
+##    - [-1.0,      0.0,        0.0,           -0.032] # values from tf
+##    - [0.0,       0.6420579,  -0.7666562,    -0.109]
+##    - [0.0,       -0.7666562, -0.6420579,    -0.101]
+##    - [0.0,       0.0,        0.0,            1.0]
+#    - [-1.0,      0.0,        0.0,    0.069] # base_link IMU
+#    - [0.0,       0.0,        -1.0,   0.0]
+#    - [0.0,       -1.0,       0.0,    0.456]
+#    - [0.0,       0.0,        0.0,    1.0]
+#  cam_overlaps: [0]
+#  camera_model: pinhole
+#  distortion_coeffs: [-0.24474849399382448, 0.11004932449100978, -0.0018675969866192542, -0.0006350936498199472]
+#  distortion_model: equidistant
+#  intrinsics: [1290.9565264821358, 1290.891371280236, 760.0476913711201, 752.0428920983152] # xi: 1.7606284224437654
+#  resolution: [1504, 1504]
+#  rotation: 1
+#  rostopic: /camera360/right/image_raw

@@ -42,6 +42,7 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
   }
 
   // 1. Clean all feature measurements and make sure they all have valid clone times
+  PRINT_DEBUG(BLUE "[UPDATER-MSCKF] msckf feats initially: %d \n" RESET, feature_vec.size());
   auto it0 = feature_vec.begin();
   while (it0 != feature_vec.end()) {
 
@@ -62,10 +63,11 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
       it0++;
     }
   }
+  PRINT_DEBUG(BLUE "[UPDATER-MSCKF] msckf feats after measurement cleaning: %d \n" RESET, feature_vec.size());
   rT1 = boost::posix_time::microsec_clock::local_time();
 
   // 2. Create vector of cloned *CAMERA* poses at each of our clone timesteps
-  // Map that sores per camID a map that stores per timestamp the camera pose
+  // Map that stores per camID a map that stores per timestamp the camera pose
   std::unordered_map<size_t, std::unordered_map<double, FeatureInitializer::ClonePose>> clones_cam;
   for (const auto &clone_calib : state->_calib_IMUtoCAM) {
 
@@ -111,6 +113,7 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
     }
     it1++;
   }
+  PRINT_DEBUG(BLUE "[UPDATER-MSCKF] msckf feats after triangulation: %d \n" RESET, feature_vec.size());
   rT2 = boost::posix_time::microsec_clock::local_time();
 
   // Calculate the max possible measurement size
@@ -196,11 +199,11 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
     if (chi2 > _options.chi2_multipler * chi2_check) {
       (*it2)->to_delete = true;
       it2 = feature_vec.erase(it2);
-      // PRINT_DEBUG("featid = %d\n", feat.featid);
-      // PRINT_DEBUG("chi2 = %f > %f\n", chi2, _options.chi2_multipler*chi2_check);
-      // std::stringstream ss;
-      // ss << "res = " << std::endl << res.transpose() << std::endl;
-      // PRINT_DEBUG(ss.str().c_str());
+//       PRINT_DEBUG("featid = %d\n", feat.featid);
+//       PRINT_DEBUG("chi2 = %f > %f\n", chi2, _options.chi2_multipler*chi2_check);
+//       std::stringstream ss;
+//       ss << "res = " << std::endl << res.transpose() << std::endl;
+//       PRINT_DEBUG(ss.str().c_str());
       continue;
     }
 

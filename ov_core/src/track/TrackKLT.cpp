@@ -21,6 +21,7 @@
 
 #include "TrackKLT.h"
 #include "utils/print.h"
+#include "opencv2/ccalib/omnidir.hpp"
 
 using namespace ov_core;
 
@@ -45,6 +46,7 @@ void TrackKLT::feed_new_camera(const CameraData &message) {
   } else if (!use_stereo) {
     parallel_for_(cv::Range(0, (int)num_images), LambdaBody([&](const cv::Range &range) {
                     for (int i = range.start; i < range.end; i++) {
+//                      PRINT_DEBUG(YELLOW "[KLT-feeder] feeding monocular cam for camID %d \n" RESET, i);
                       feed_monocular(message, i);
                     }
                   }));
@@ -64,6 +66,7 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
   std::lock_guard<std::mutex> lck(mtx_feeds.at(cam_id));
 
   // Histogram equalize
+//  cv::Mat img_dist, mask_dist, mask;
   cv::Mat img, mask;
   if (histogram_method == HistogramMethod::HISTOGRAM) {
     cv::equalizeHist(message.images.at(msg_id), img);
@@ -75,6 +78,24 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
   } else {
     img = message.images.at(msg_id);
   }
+//  cv::Mat img, xi;
+//  cv::Matx33d K, K_new;
+//  cv::Vec4d D;
+//  K = camera_calib.at(cam_id)->get_K();
+//  D = camera_calib.at(cam_id)->get_D();
+//  xi = cv::Mat(cv::Size(1,1), CV_32F, cv::Scalar(1.0));
+//  cv::Size new_size = cv::Size(2*img_dist.cols, img_dist.rows);
+//  K_new = cv::Matx33d(new_size.width/3.1415, 0, 0,
+//                    0, new_size.height/3.1415, 0,
+//                    0, 0, 1);
+//  cv::omnidir::undistortImage(img_dist, img, K, D, xi, cv::omnidir::RECTIFY_STEREOGRAPHIC, K_new, new_size);
+////  cv::namedWindow("undist",cv::WINDOW_AUTOSIZE);
+////  cv::imshow("undist", img);
+////  cv::waitKey(0);
+////  cv::destroyWindow("undist");
+//  mask_dist = message.masks.at(msg_id);
+//  cv::omnidir::undistortImage(mask_dist, mask, K, D, xi, cv::omnidir::RECTIFY_STEREOGRAPHIC, K_new, new_size);
+
   mask = message.masks.at(msg_id);
 
   // Extract the new image pyramid
@@ -91,6 +112,7 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
     img_last[cam_id] = img;
     img_pyramid_last[cam_id] = imgpyr;
     img_mask_last[cam_id] = mask;
+    PRINT_DEBUG(RED "[KLT-EXTRACTOR]: No existing points. Extracted %d points for next iteration.\n" RESET, pts_last[cam_id].size());
     return;
   }
 
@@ -139,6 +161,7 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
       good_ids_left.push_back(ids_last[cam_id][i]);
     }
   }
+//  PRINT_DEBUG(BLUE "[KLT-EXTRACTOR] Good tracks: %d from %d after RANSAC \n" RESET, good_left.size(), pts_left_new.size());
 
   // Update our feature database, with theses new observations
   for (size_t i = 0; i < good_left.size(); i++) {
@@ -412,14 +435,20 @@ void TrackKLT::perform_detection_monocular(const std::vector<cv::Mat> &img0pyr, 
 
   // First compute how many more features we need to extract from this image
   int num_featsneeded = num_features - (int)pts0.size();
+//  PRINT_DEBUG(BLUE "[TrackKLT]: Existing features %d | N.o. new features need %d \n" RESET, pts0.size(), num_featsneeded);
 
   // If we don't need any features, just return
   if (num_featsneeded < std::min(75, (int)(0.2 * num_features)))
+  {
+//    PRINT_DEBUG( BLUE "[TrackKLT]: N.o. new features need less than %d, RETURN \n" RESET,
+//                 std::min( 75, (int) (0.2 * num_features)));
     return;
+  }
 
   // Extract our features (use fast with griding)
   std::vector<cv::KeyPoint> pts0_ext;
   Grider_FAST::perform_griding(img0pyr.at(0), mask0_updated, pts0_ext, num_features, grid_x, grid_y, threshold, true);
+//  PRINT_DEBUG(BLUE "[TrackKLT]: Extracted KLT features, now have %d feats \n" RESET, pts0_ext.size());
 
   // Now, reject features that are close a current feature
   std::vector<cv::KeyPoint> kpts0_new;
@@ -724,6 +753,7 @@ void TrackKLT::perform_matching(const std::vector<cv::Mat> &img0pyr, const std::
     auto mask = (uchar)((i < mask_klt.size() && mask_klt[i] && i < mask_rsc.size() && mask_rsc[i]) ? 1 : 0);
     mask_out.push_back(mask);
   }
+//  PRINT_DEBUG(BLUE "[Perf-Matching] found %d inliers, %d outliers \n" RESET, std::count(mask_out.begin(), mask_out.end(), (uchar)1), std::count(mask_out.begin(), mask_out.end(), (uchar)0))
 
   // Copy back the updated positions
   for (size_t i = 0; i < pts0.size(); i++) {
