@@ -134,6 +134,20 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
   parser->parse_external("relative_config_imu", "imu0", "rostopic", topic_imu);
   sub_imu = _nh->subscribe(topic_imu, 1000, &ROS1Visualizer::callback_inertial, this);
 
+  auto camera_sync = _app->get_params().camera_sync;
+  std::unordered_map<int, std::vector<int>> sync_groups;
+
+  // Validate all sync pairs are valid and interconnected
+  for (auto & sync_pair : camera_sync) {
+    for (auto & val : sync_pair.second) {
+      if (val < -1 || val >= _app->get_params().state_options.num_cameras) {
+        PRINT_ERROR("Camera %d to be synchronized with cam %d, which is not a valid index", sync_pair.first, val);
+        return;
+      }
+    }
+  }
+  // have to validate that no cam id is there multiple times
+
   // Logic for sync stereo subscriber
   // https://answers.ros.org/question/96346/subscribe-to-two-image_raws-with-one-function/?answer=96491#post-id-96491
   if (_app->get_params().state_options.num_cameras == 2) {

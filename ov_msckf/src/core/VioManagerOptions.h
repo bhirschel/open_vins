@@ -205,6 +205,9 @@ struct VioManagerOptions {
   /// Mask images for each camera
   std::map<size_t, cv::Mat> masks;
 
+  /// Synchronization parameter to mark which cameras are to be processed synchronized
+  std::map<size_t, std::vector<int>> camera_sync;
+
   /// Rotation of each camera as preprocessing (0=0°, 1=90°, 2=180°, 3=270°), indexed by cam ID
   std::map<size_t, uint8_t> image_stream_rotations;
 
@@ -250,6 +253,11 @@ struct VioManagerOptions {
         matrix_wh.at(0) /= (downsample_cameras) ? 2.0 : 1.0;
         matrix_wh.at(1) /= (downsample_cameras) ? 2.0 : 1.0;
         std::pair<int, int> wh(matrix_wh.at(0), matrix_wh.at(1));
+
+        // Synchronization
+        std::vector<int> matrix_sync {-1};
+        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "sync_with", matrix_sync, false);
+        camera_sync.insert({(size_t)i, std::vector<int>(matrix_sync)});
 
         // Image stream rotation
         std::vector<int> rotation = {0};
