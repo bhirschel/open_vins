@@ -79,6 +79,14 @@ protected:
   void feed_stereo(const CameraData &message, size_t msg_id_left, size_t msg_id_right);
 
   /**
+   * @brief Process new multi-camera set of images
+   * @param message Contains our timestamp, images, and camera ids
+   * @param msg_id_left first image index in message data vector
+   * @param msg_id_right second image index in message data vector
+   */
+  void feed_multi_cam(const CameraData &message, std::vector<size_t> msg_id_list);
+
+  /**
    * @brief Detects new features in the current image
    * @param img0pyr image we will detect features on (first level of pyramid)
    * @param mask0 mask which has what ROI we do not want features in

@@ -134,42 +134,8 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
   parser->parse_external("relative_config_imu", "imu0", "rostopic", topic_imu);
   sub_imu = _nh->subscribe(topic_imu, 1000, &ROS1Visualizer::callback_inertial, this);
 
-  auto camera_sync = _app->get_params().camera_sync;
-  std::unordered_map<int, std::vector<int>> sync_groups;
-
-  // Validate all sync pairs are valid and interconnected
-  for (auto & sync_pair : camera_sync) {
-    for (auto & val : sync_pair.second) {
-      if (val < -1 || val >= _app->get_params().state_options.num_cameras) {
-        PRINT_ERROR("Camera %d to be synchronized with cam %d, which is not a valid index", sync_pair.first, val);
-        return;
-      }
-    }
-  }
-  // have to validate that no cam id is there multiple times
-
-  // Logic for sync stereo subscriber
-  // https://answers.ros.org/question/96346/subscribe-to-two-image_raws-with-one-function/?answer=96491#post-id-96491
-  if (_app->get_params().state_options.num_cameras == 2) {
-    // Read in the topics
-    std::string cam_topic0, cam_topic1;
-    _nh->param<std::string>("topic_camera" + std::to_string(0), cam_topic0, "/cam" + std::to_string(0) + "/image_raw");
-    _nh->param<std::string>("topic_camera" + std::to_string(1), cam_topic1, "/cam" + std::to_string(1) + "/image_raw");
-    parser->parse_external("relative_config_imucam", "cam" + std::to_string(0), "rostopic", cam_topic0);
-    parser->parse_external("relative_config_imucam", "cam" + std::to_string(1), "rostopic", cam_topic1);
-    // Create sync filter (they have unique pointers internally, so we have to use move logic here...)
-    auto image_sub0 = std::make_shared<message_filters::Subscriber<sensor_msgs::Image>>(*_nh, cam_topic0, 1);
-    auto image_sub1 = std::make_shared<message_filters::Subscriber<sensor_msgs::Image>>(*_nh, cam_topic1, 1);
-    auto sync = std::make_shared<message_filters::Synchronizer<sync_pol>>(sync_pol(10), *image_sub0, *image_sub1);
-    sync->registerCallback(boost::bind(&ROS1Visualizer::callback_stereo, this, _1, _2, 0, 1));
-    // Append to our vector of subscribers
-    sync_cam.push_back(sync);
-    sync_subs_cam.push_back(image_sub0);
-    sync_subs_cam.push_back(image_sub1);
-    PRINT_DEBUG("subscribing to cam (stereo): %s\n", cam_topic0.c_str());
-    PRINT_DEBUG("subscribing to cam (stereo): %s\n", cam_topic1.c_str());
-  } else {
-    // Now we should add any non-stereo callbacks here
+  if (_app->get_params().camera_sync_groups.empty()) {
+    // If not specified, add all callbacks independently
     for (int i = 0; i < _app->get_params().state_options.num_cameras; i++) {
       // read in the topic
       std::string cam_topic;
@@ -179,7 +145,139 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
       subs_cam.push_back(_nh->subscribe<sensor_msgs::Image>(cam_topic, 10, boost::bind(&ROS1Visualizer::callback_monocular, this, _1, i)));
       PRINT_DEBUG("subscribing to cam (mono): %s\n", cam_topic.c_str());
     }
+  } else {
+    for (auto & group : _app->get_params().camera_sync_groups) {
+      if (group.size() == 1) {
+        // read in the topic
+        std::string cam_topic;
+        _nh->param<std::string>("topic_camera" + std::to_string(group[0]), cam_topic, "/cam" + std::to_string(group[0]) + "/image_raw");
+        parser->parse_external("relative_config_imucam", "cam" + std::to_string(group[0]), "rostopic", cam_topic);
+        // create subscriber
+        subs_cam.push_back(_nh->subscribe<sensor_msgs::Image>(cam_topic, 10, boost::bind(&ROS1Visualizer::callback_monocular, this, _1, group[0])));
+        PRINT_DEBUG("subscribing to cam (mono): %s\n", cam_topic.c_str());
+      } else if (group.size() == 2) {
+        // Read in the topics
+        std::string cam_topic0, cam_topic1;
+        _nh->param<std::string>("topic_camera" + std::to_string(0), cam_topic0, "/cam" + std::to_string(group[0]) + "/image_raw");
+        _nh->param<std::string>("topic_camera" + std::to_string(1), cam_topic1, "/cam" + std::to_string(group[1]) + "/image_raw");
+        parser->parse_external("relative_config_imucam", "cam" + std::to_string(group[0]), "rostopic", cam_topic0);
+        parser->parse_external("relative_config_imucam", "cam" + std::to_string(group[1]), "rostopic", cam_topic1);
+        // Create sync filter (they have unique pointers internally, so we have to use move logic here...)
+        auto image_sub0 = std::make_shared<message_filters::Subscriber<sensor_msgs::Image>>(*_nh, cam_topic0, 1);
+        auto image_sub1 = std::make_shared<message_filters::Subscriber<sensor_msgs::Image>>(*_nh, cam_topic1, 1);
+        auto sync = std::make_shared<message_filters::Synchronizer<sync_pol2>>(sync_pol2(10), *image_sub0, *image_sub1);
+        sync->registerCallback(boost::bind(&ROS1Visualizer::callback_stereo, this, _1, _2, group[0], group[1]));
+        // Append to our vector of subscribers
+        sync_cam2.push_back(sync);
+        sync_subs_cam.push_back(image_sub0);
+        sync_subs_cam.push_back(image_sub1);
+        PRINT_DEBUG("subscribing to cam (stereo): %s\n", cam_topic0.c_str());
+        PRINT_DEBUG("subscribing to cam (stereo): %s\n", cam_topic1.c_str());
+      } else if (group.size() <= 6) {
+        // Add multi camera callback
+        std::vector<std::string> cam_topics;
+        std::vector<std::shared_ptr<message_filters::Subscriber<sensor_msgs::Image>>> image_subs;
+
+        for (auto& val : group) {
+          std::string cam_topic;
+          _nh->param<std::string>("topic_camera" + std::to_string(1), cam_topic, "/cam" + std::to_string(val) + "/image_raw");
+          parser->parse_external("relative_config_imucam", "cam" + std::to_string(val), "rostopic", cam_topic);
+          auto image_sub = std::make_shared<message_filters::Subscriber<sensor_msgs::Image>>(*_nh, cam_topic, 1);
+          cam_topics.push_back(cam_topic);
+          image_subs.push_back(image_sub);
+        }
+        if (group.size() == 3) {
+          auto sync = std::make_shared<message_filters::Synchronizer<sync_pol3>>(sync_pol3(10), *image_subs.at(0), *image_subs.at(1), *image_subs.at(2));
+          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi3, this, _1, _2, _3, group[0], group[1], group[2]));
+          // Append to our vector of subscribers
+          sync_cam3.push_back(sync);
+          sync_subs_cam.insert(sync_subs_cam.end(), image_subs.begin(), image_subs.end());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[0].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[1].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[2].c_str());
+        } else if (group.size() == 4) {
+          auto sync = std::make_shared<message_filters::Synchronizer<sync_pol4>>(sync_pol4(10), *image_subs.at(0), *image_subs.at(1), *image_subs.at(2), *image_subs.at(3));
+          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi4, this, _1, _2, _3, _4, group[0], group[1], group[2], group[3]));
+          // Append to our vector of subscribers
+          sync_cam4.push_back(sync);
+          sync_subs_cam.insert(sync_subs_cam.end(), image_subs.begin(), image_subs.end());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[0].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[1].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[2].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[3].c_str());
+        } else if (group.size() == 5) {
+          auto sync = std::make_shared<message_filters::Synchronizer<sync_pol5>>(sync_pol5(10), *image_subs.at(0), *image_subs.at(1), *image_subs.at(2), *image_subs.at(3), *image_subs.at(4));
+          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi5, this, _1, _2, _3, _4, _5, group[0], group[1], group[2], group[3], group[4]));
+          // Append to our vector of subscribers
+          sync_cam5.push_back(sync);
+          sync_subs_cam.insert(sync_subs_cam.end(), image_subs.begin(), image_subs.end());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[0].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[1].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[2].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[3].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[4].c_str());
+        } else if (group.size() == 6) {
+          auto sync = std::make_shared<message_filters::Synchronizer<sync_pol6>>(sync_pol6(10), *image_subs.at(0), *image_subs.at(1), *image_subs.at(2), *image_subs.at(3), *image_subs.at(4), *image_subs.at(5));
+          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi6, this, _1, _2, _3, _4, _5, _6, group[0], group[1], group[2], group[3], group[4], group[5]));
+          // Append to our vector of subscribers
+          sync_cam6.push_back(sync);
+          sync_subs_cam.insert(sync_subs_cam.end(), image_subs.begin(), image_subs.end());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[0].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[1].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[2].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[3].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[4].c_str());
+          PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[5].c_str());
+        } else {
+          PRINT_ERROR(RED "An error occurred registering a synchronized multi-camera callback for %d cams!\n" RESET, group.size());
+        }
+      } else {
+        PRINT_WARNING(YELLOW "More than 6 cameras can currently not be registered for a synchronized callback!\n" RESET);
+        for (auto &i : group) {
+          // read in the topic
+          std::string cam_topic;
+          _nh->param<std::string>("topic_camera" + std::to_string(i), cam_topic, "/cam" + std::to_string(i) + "/image_raw");
+          parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "rostopic", cam_topic);
+          // create subscriber
+          subs_cam.push_back(_nh->subscribe<sensor_msgs::Image>(cam_topic, 10, boost::bind(&ROS1Visualizer::callback_monocular, this, _1, i)));
+          PRINT_DEBUG("Alternatively subscribing to cam (mono): %s\n", cam_topic.c_str());
+        }
+      }
+    }
   }
+
+  // Logic for sync stereo subscriber
+  // https://answers.ros.org/question/96346/subscribe-to-two-image_raws-with-one-function/?answer=96491#post-id-96491
+//  if (_app->get_params().state_options.num_cameras == 2) {
+//    // Read in the topics
+//    std::string cam_topic0, cam_topic1;
+//    _nh->param<std::string>("topic_camera" + std::to_string(0), cam_topic0, "/cam" + std::to_string(0) + "/image_raw");
+//    _nh->param<std::string>("topic_camera" + std::to_string(1), cam_topic1, "/cam" + std::to_string(1) + "/image_raw");
+//    parser->parse_external("relative_config_imucam", "cam" + std::to_string(0), "rostopic", cam_topic0);
+//    parser->parse_external("relative_config_imucam", "cam" + std::to_string(1), "rostopic", cam_topic1);
+//    // Create sync filter (they have unique pointers internally, so we have to use move logic here...)
+//    auto image_sub0 = std::make_shared<message_filters::Subscriber<sensor_msgs::Image>>(*_nh, cam_topic0, 1);
+//    auto image_sub1 = std::make_shared<message_filters::Subscriber<sensor_msgs::Image>>(*_nh, cam_topic1, 1);
+//    auto sync = std::make_shared<message_filters::Synchronizer<sync_pol>>(sync_pol(10), *image_sub0, *image_sub1);
+//    sync->registerCallback(boost::bind(&ROS1Visualizer::callback_stereo, this, _1, _2, 0, 1));
+//    // Append to our vector of subscribers
+//    sync_cam.push_back(sync);
+//    sync_subs_cam.push_back(image_sub0);
+//    sync_subs_cam.push_back(image_sub1);
+//    PRINT_DEBUG("subscribing to cam (stereo): %s\n", cam_topic0.c_str());
+//    PRINT_DEBUG("subscribing to cam (stereo): %s\n", cam_topic1.c_str());
+//  } else {
+//    // Now we should add any non-stereo callbacks here
+//    for (int i = 0; i < _app->get_params().state_options.num_cameras; i++) {
+//      // read in the topic
+//      std::string cam_topic;
+//      _nh->param<std::string>("topic_camera" + std::to_string(i), cam_topic, "/cam" + std::to_string(i) + "/image_raw");
+//      parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "rostopic", cam_topic);
+//      // create subscriber
+//      subs_cam.push_back(_nh->subscribe<sensor_msgs::Image>(cam_topic, 10, boost::bind(&ROS1Visualizer::callback_monocular, this, _1, i)));
+//      PRINT_DEBUG("subscribing to cam (mono): %s\n", cam_topic.c_str());
+//    }
+//  }
 }
 
 void ROS1Visualizer::visualize() {
@@ -555,6 +653,172 @@ void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, con
   std::lock_guard<std::mutex> lck(camera_queue_mtx);
   camera_queue.push_back(message);
   std::sort(camera_queue.begin(), camera_queue.end());
+}
+
+void ROS1Visualizer::callback_multi3( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
+                      const sensor_msgs::ImageConstPtr &msg2, int cam_id0, int cam_id1, int cam_id2 ) {
+  PRINT_ERROR(RED "Synced multi-cam callback for 3 cameras not yet supported!\n");
+}
+
+void ROS1Visualizer::callback_multi4( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
+                      const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3, int cam_id0,
+                      int cam_id1, int cam_id2, int cam_id3 ) {
+  // Check if we should drop this image
+  double timestamp = msg0->header.stamp.toSec();
+  double time_delta = 1.0 / _app->get_params().track_frequency;
+  if (camera_last_timestamp.find(cam_id0) != camera_last_timestamp.end() && timestamp < camera_last_timestamp.at(cam_id0) + time_delta) {
+    return; // TODO(bhirschel) not only do that check for cam0
+  }
+  camera_last_timestamp[cam_id0] = timestamp;
+
+  // Get image 0
+  cv_bridge::CvImageConstPtr cv_ptr0;
+  try {
+    cv_ptr0 = cv_bridge::toCvShare(msg0, sensor_msgs::image_encodings::MONO8);
+  } catch (cv_bridge::Exception &e) {
+    PRINT_ERROR("cv_bridge exception: %s\n", e.what());
+    return;
+  }
+
+  // Get image 1
+  cv_bridge::CvImageConstPtr cv_ptr1;
+  try {
+    cv_ptr1 = cv_bridge::toCvShare(msg1, sensor_msgs::image_encodings::MONO8);
+  } catch (cv_bridge::Exception &e) {
+    PRINT_ERROR("cv_bridge exception: %s\n", e.what());
+    return;
+  }
+
+  // Get image 2
+  cv_bridge::CvImageConstPtr cv_ptr2;
+  try {
+    cv_ptr2 = cv_bridge::toCvShare(msg2, sensor_msgs::image_encodings::MONO8);
+  } catch (cv_bridge::Exception &e) {
+    PRINT_ERROR("cv_bridge exception: %s\n", e.what());
+    return;
+  }
+
+  // Get image 3
+  cv_bridge::CvImageConstPtr cv_ptr3;
+  try {
+    cv_ptr3 = cv_bridge::toCvShare(msg3, sensor_msgs::image_encodings::MONO8);
+  } catch (cv_bridge::Exception &e) {
+    PRINT_ERROR("cv_bridge exception: %s\n", e.what());
+    return;
+  }
+
+  // Create the measurement
+  ov_core::CameraData message;
+  message.timestamp = cv_ptr0->header.stamp.toSec();
+  message.sensor_ids.push_back(cam_id0);
+  message.sensor_ids.push_back(cam_id1);
+  message.sensor_ids.push_back(cam_id2);
+  message.sensor_ids.push_back(cam_id3);
+  // Rotation for image 0
+  if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+    cv::Mat dst_img;
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+    cv::rotate(cv_ptr0->image.clone(), dst_img, flag);
+    message.images.push_back(dst_img);
+  } else {
+    message.images.push_back(cv_ptr0->image.clone());
+  }
+  // Rotation for image 1
+  if(_app->get_params().image_stream_rotations.at(cam_id1) > 0 && _app->get_params().image_stream_rotations.at(cam_id1) < 4) {
+    cv::Mat dst_img;
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id1 ) - 1);
+    cv::rotate(cv_ptr1->image.clone(), dst_img, flag);
+    message.images.push_back(dst_img);
+  } else {
+    message.images.push_back(cv_ptr1->image.clone());
+  }
+  // Rotation for image 2
+  if(_app->get_params().image_stream_rotations.at(cam_id2) > 0 && _app->get_params().image_stream_rotations.at(cam_id2) < 4) {
+    cv::Mat dst_img;
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id2 ) - 1);
+    cv::rotate(cv_ptr2->image.clone(), dst_img, flag);
+    message.images.push_back(dst_img);
+  } else {
+    message.images.push_back(cv_ptr2->image.clone());
+  }
+  // Rotation for image 3
+  if(_app->get_params().image_stream_rotations.at(cam_id3) > 0 && _app->get_params().image_stream_rotations.at(cam_id3) < 4) {
+    cv::Mat dst_img;
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id3 ) - 1);
+    cv::rotate(cv_ptr3->image.clone(), dst_img, flag);
+    message.images.push_back(dst_img);
+  } else {
+    message.images.push_back(cv_ptr3->image.clone());
+  }
+
+  // Load the mask if we are using it, else it is empty
+  // TODO: in the future we should get this from external pixel segmentation
+  // Mask for cam 0
+  if (_app->get_params().use_mask) {
+    if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+      cv::Mat rotated_mask, inverted_mask;
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id0), rotated_mask, flag);
+      cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
+      message.masks.push_back(inverted_mask);
+    } else {
+      message.masks.push_back(_app->get_params().masks.at(cam_id0));
+    }
+    // Mask for cam 1
+    if(_app->get_params().image_stream_rotations.at(cam_id1) > 0 && _app->get_params().image_stream_rotations.at(cam_id1) < 4) {
+      cv::Mat rotated_mask, inverted_mask;
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id1 ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id1), rotated_mask, flag);
+      cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
+      message.masks.push_back(inverted_mask);
+    } else {
+      message.masks.push_back(_app->get_params().masks.at(cam_id1));
+    }
+    // Mask for cam 2
+    if(_app->get_params().image_stream_rotations.at(cam_id2) > 0 && _app->get_params().image_stream_rotations.at(cam_id2) < 4) {
+      cv::Mat rotated_mask, inverted_mask;
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id2 ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id2), rotated_mask, flag);
+      cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
+      message.masks.push_back(inverted_mask);
+    } else {
+      message.masks.push_back(_app->get_params().masks.at(cam_id2));
+    }
+    // Mask for cam 3
+    if(_app->get_params().image_stream_rotations.at(cam_id3) > 0 && _app->get_params().image_stream_rotations.at(cam_id3) < 4) {
+      cv::Mat rotated_mask, inverted_mask;
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id3 ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id3), rotated_mask, flag);
+      cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
+      message.masks.push_back(inverted_mask);
+    } else {
+      message.masks.push_back(_app->get_params().masks.at(cam_id3));
+    }
+  } else {
+    message.masks.push_back(cv::Mat::zeros(cv_ptr0->image.rows, cv_ptr0->image.cols, CV_8UC1));
+    message.masks.push_back(cv::Mat::zeros(cv_ptr1->image.rows, cv_ptr1->image.cols, CV_8UC1));
+    message.masks.push_back(cv::Mat::zeros(cv_ptr2->image.rows, cv_ptr2->image.cols, CV_8UC1));
+    message.masks.push_back(cv::Mat::zeros(cv_ptr3->image.rows, cv_ptr3->image.cols, CV_8UC1));
+  }
+
+  // append it to our queue of images
+  std::lock_guard<std::mutex> lck(camera_queue_mtx);
+  camera_queue.push_back(message);
+  std::sort(camera_queue.begin(), camera_queue.end());
+}
+
+void ROS1Visualizer::callback_multi5( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
+                      const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
+                      const sensor_msgs::ImageConstPtr &msg4, int cam_id0, int cam_id1, int cam_id2, int cam_id3,
+                      int cam_id4 ) {
+  PRINT_ERROR(RED "Synced multi-cam callback for 5 cameras not yet supported!\n");
+}
+
+void ROS1Visualizer::callback_multi6( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
+                      const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
+                      const sensor_msgs::ImageConstPtr &msg4, const sensor_msgs::ImageConstPtr &msg5, int cam_id0,
+                      int cam_id1, int cam_id2, int cam_id3, int cam_id4, int cam_id5 ) {
+  PRINT_ERROR(RED "Synced multi-cam callback for 6 cameras not yet supported!\n");
 }
 
 void ROS1Visualizer::publish_state() {

@@ -206,7 +206,10 @@ struct VioManagerOptions {
   std::map<size_t, cv::Mat> masks;
 
   /// Synchronization parameter to mark which cameras are to be processed synchronized
-  std::map<size_t, std::vector<int>> camera_sync;
+  std::vector<std::vector<int>> camera_sync_groups;
+
+  /// Grouping that shows what cameras overlap each other
+  std::vector<std::vector<int>> stereo_overlap_groups;
 
   /// Rotation of each camera as preprocessing (0=0°, 1=90°, 2=180°, 3=270°), indexed by cam ID
   std::map<size_t, uint8_t> image_stream_rotations;
@@ -221,7 +224,15 @@ struct VioManagerOptions {
     if (parser != nullptr) {
       parser->parse_config("gravity_mag", gravity_mag);
       parser->parse_config("max_cameras", state_options.num_cameras); // might be redundant
+      parser->parse_config("sync_groups", camera_sync_groups);
+      parser->parse_config("stereo_overlap", stereo_overlap_groups);
       parser->parse_config("downsample_cameras", downsample_cameras); // might be redundant
+      // Validate stereo overlap
+      for (auto &group : stereo_overlap_groups) {
+        if (group.size() != 2) {
+          PRINT_WARNING(YELLOW "Parameter \"stereo_overlap\" malformatted. May only accept pairwise overlap")
+        }
+      }
       for (int i = 0; i < state_options.num_cameras; i++) {
 
         // Time offset (use the first one)
@@ -255,9 +266,9 @@ struct VioManagerOptions {
         std::pair<int, int> wh(matrix_wh.at(0), matrix_wh.at(1));
 
         // Synchronization
-        std::vector<int> matrix_sync {-1};
-        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "sync_with", matrix_sync, false);
-        camera_sync.insert({(size_t)i, std::vector<int>(matrix_sync)});
+//        std::vector<int> matrix_sync {-1};
+//        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "sync_with", matrix_sync, false);
+//        camera_sync.insert({(size_t)i, std::vector<int>(matrix_sync)});
 
         // Image stream rotation
         std::vector<int> rotation = {0};

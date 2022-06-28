@@ -136,6 +136,21 @@ public:
   }
 
   /**
+ * @brief Custom parser for the ESTIMATOR parameters of type std::vector<std::vector<int>>.
+ *
+ * This will load the data from the main config file.
+ * If it is unable it will give a warning to the user it couldn't be found.
+ *
+ * @param node_name Name of the node
+ * @param node_result Resulting value (should already have default value in it)
+ * @param required If this parameter is required by the user to set
+ */
+  void parse_config( const std::string &node_name, std::vector<std::vector<int>>& node_result, bool required = true ) {
+    // This has to be parsed from the YAML file
+    parse_config_yaml( node_name, node_result, required );
+  }
+
+  /**
    * @brief Custom parser for the external parameter files with levels.
    *
    * This will first load the external file requested.
@@ -366,6 +381,48 @@ private:
     // Now try to get it from the config
     try {
       file_node[node_name] >> node_result;
+    } catch (...) {
+      if (required) {
+        PRINT_WARNING(YELLOW "unable to parse %s node of type [%s] in the config file!\n" RESET, node_name.c_str(),
+                      typeid(node_result).name());
+        all_params_found_successfully = false;
+      } else {
+        PRINT_DEBUG("unable to parse %s node of type [%s] in the config file (not required)\n", node_name.c_str(),
+                    typeid(node_result).name());
+      }
+    }
+  }
+
+  /**
+   * @brief Custom parser for std::vector<std::vector<int>>
+   * @param file_node OpenCV file node we will get the data from
+   * @param node_name Name of the node
+   * @param node_result Resulting value (should already have default value in it)
+   * @param required If this parameter is required by the user to set
+   */
+  void parse(const cv::FileNode &file_node, const std::string &node_name, std::vector<std::vector<int>> &node_result, bool required = true) {
+
+    // Check that we have the requested node
+    if (!node_found(file_node, node_name)) {
+      if (required) {
+        PRINT_WARNING(YELLOW "the node %s of type [%s] was not found...\n" RESET, node_name.c_str(), typeid(node_result).name());
+        all_params_found_successfully = false;
+      } else {
+        PRINT_DEBUG("the node %s of type [%s] was not found (not required)...\n", node_name.c_str(), typeid(node_result).name());
+      }
+      return;
+    }
+
+    // Now try to get it from the config
+    node_result = std::vector<std::vector<int>>();
+    try {
+      for (int r = 0; r < (int)file_node[node_name].size(); r++) {
+        std::vector<int> val;
+        for (int c = 0; c < (int)file_node[node_name][r].size(); c++) {
+          val.push_back(file_node[node_name][r][c]);
+        }
+        node_result.push_back(val);
+      }
     } catch (...) {
       if (required) {
         PRINT_WARNING(YELLOW "unable to parse %s node of type [%s] in the config file!\n" RESET, node_name.c_str(),

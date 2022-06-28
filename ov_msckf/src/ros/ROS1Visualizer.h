@@ -104,7 +104,29 @@ public:
   void callback_monocular(const sensor_msgs::ImageConstPtr &msg0, int cam_id0);
 
   /// Callback for synchronized stereo camera information
-  void callback_stereo(const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1, int cam_id0, int cam_id1);
+  void callback_stereo( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1, int cam_id0,
+                        int cam_id1 );
+
+  /// Callback for synchronized stereo camera information
+  void callback_multi3( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
+                        const sensor_msgs::ImageConstPtr &msg2, int cam_id0, int cam_id1, int cam_id2 );
+
+  /// Callback for synchronized stereo camera information
+  void callback_multi4( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
+                        const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3, int cam_id0,
+                        int cam_id1, int cam_id2, int cam_id3 );
+
+  /// Callback for synchronized stereo camera information
+  void callback_multi5( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
+                        const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
+                        const sensor_msgs::ImageConstPtr &msg4, int cam_id0, int cam_id1, int cam_id2, int cam_id3,
+                        int cam_id4 );
+
+  /// Callback for synchronized stereo camera information
+  void callback_multi6( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
+                        const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
+                        const sensor_msgs::ImageConstPtr &msg4, const sensor_msgs::ImageConstPtr &msg5, int cam_id0,
+                        int cam_id1, int cam_id2, int cam_id3, int cam_id4, int cam_id5 );
 
 protected:
   /// Publish the current state
@@ -141,8 +163,16 @@ protected:
   // Our subscribers and camera synchronizers
   ros::Subscriber sub_imu;
   std::vector<ros::Subscriber> subs_cam;
-  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
-  std::vector<std::shared_ptr<message_filters::Synchronizer<sync_pol>>> sync_cam;
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol2;
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image> sync_pol3;
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image> sync_pol4;
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image> sync_pol5;
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image> sync_pol6;
+  std::vector<std::shared_ptr<message_filters::Synchronizer<sync_pol2>>> sync_cam2;
+  std::vector<std::shared_ptr<message_filters::Synchronizer<sync_pol3>>> sync_cam3;
+  std::vector<std::shared_ptr<message_filters::Synchronizer<sync_pol4>>> sync_cam4;
+  std::vector<std::shared_ptr<message_filters::Synchronizer<sync_pol5>>> sync_cam5;
+  std::vector<std::shared_ptr<message_filters::Synchronizer<sync_pol6>>> sync_cam6;
   std::vector<std::shared_ptr<message_filters::Subscriber<sensor_msgs::Image>>> sync_subs_cam;
 
   // For path viz

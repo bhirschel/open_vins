@@ -226,7 +226,7 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
   rT2 = boost::posix_time::microsec_clock::local_time();
 
   // If we didn't have any successful tracks last time, just extract this time
-  // This also handles, the tracking initalization on the first call to this extractor
+  // This also handles, the tracking initialization on the first call to this extractor
   if (pts_last[cam_id_left].empty() && pts_last[cam_id_right].empty()) {
     // Track into the new image
     perform_detection_stereo(imgpyr_left, imgpyr_right, mask_left, mask_right, cam_id_left, cam_id_right, pts_last[cam_id_left],
@@ -340,7 +340,7 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
     if (pts_right_new.at(i).pt.x < 0 || pts_right_new.at(i).pt.y < 0 || (int)pts_right_new.at(i).pt.x >= img_right.cols ||
         (int)pts_right_new.at(i).pt.y >= img_right.rows)
       continue;
-    // See if we have the same feature in the right
+    // See if the feature has already been added through stereo correspondence from above
     bool added_already = (std::find(good_ids_right.begin(), good_ids_right.end(), ids_last[cam_id_right].at(i)) != good_ids_right.end());
     // If it has not already been added as a good feature, add it as a mono track
     if (mask_rr[i] && !added_already) {
@@ -382,6 +382,10 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
   // PRINT_DEBUG("[TIME-KLT]: %.4f seconds for stereo klt\n",(rT5-rT4).total_microseconds() * 1e-6);
   // PRINT_DEBUG("[TIME-KLT]: %.4f seconds for feature DB update (%d features)\n",(rT6-rT5).total_microseconds() * 1e-6,
   // (int)good_left.size()); PRINT_DEBUG("[TIME-KLT]: %.4f seconds for total\n",(rT6-rT1).total_microseconds() * 1e-6);
+}
+
+void TrackKLT::feed_multi_cam( const CameraData &message, std::vector<size_t> msg_id_list ) {
+
 }
 
 void TrackKLT::perform_detection_monocular(const std::vector<cv::Mat> &img0pyr, const cv::Mat &mask0, std::vector<cv::KeyPoint> &pts0,
