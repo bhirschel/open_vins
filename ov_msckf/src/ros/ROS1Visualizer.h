@@ -109,24 +109,23 @@ public:
 
   /// Callback for synchronized stereo camera information
   void callback_multi3( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
-                        const sensor_msgs::ImageConstPtr &msg2, int cam_id0, int cam_id1, int cam_id2 );
+                        const sensor_msgs::ImageConstPtr &msg2, std::vector<int> &cam_id_vec);
 
   /// Callback for synchronized stereo camera information
   void callback_multi4( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
-                        const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3, int cam_id0,
-                        int cam_id1, int cam_id2, int cam_id3 );
+                        const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
+                        std::vector<int> &cam_id_vec);
 
   /// Callback for synchronized stereo camera information
   void callback_multi5( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
                         const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
-                        const sensor_msgs::ImageConstPtr &msg4, int cam_id0, int cam_id1, int cam_id2, int cam_id3,
-                        int cam_id4 );
+                        const sensor_msgs::ImageConstPtr &msg4, std::vector<int> &cam_id_vec);
 
   /// Callback for synchronized stereo camera information
   void callback_multi6( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
                         const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
-                        const sensor_msgs::ImageConstPtr &msg4, const sensor_msgs::ImageConstPtr &msg5, int cam_id0,
-                        int cam_id1, int cam_id2, int cam_id3, int cam_id4, int cam_id5 );
+                        const sensor_msgs::ImageConstPtr &msg4, const sensor_msgs::ImageConstPtr &msg5,
+                        std::vector<int> &cam_id_vec);
 
 protected:
   /// Publish the current state

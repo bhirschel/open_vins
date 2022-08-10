@@ -188,7 +188,7 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
         }
         if (group.size() == 3) {
           auto sync = std::make_shared<message_filters::Synchronizer<sync_pol3>>(sync_pol3(10), *image_subs.at(0), *image_subs.at(1), *image_subs.at(2));
-          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi3, this, _1, _2, _3, group[0], group[1], group[2]));
+          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi3, this, _1, _2, _3, group));
           // Append to our vector of subscribers
           sync_cam3.push_back(sync);
           sync_subs_cam.insert(sync_subs_cam.end(), image_subs.begin(), image_subs.end());
@@ -197,7 +197,7 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
           PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[2].c_str());
         } else if (group.size() == 4) {
           auto sync = std::make_shared<message_filters::Synchronizer<sync_pol4>>(sync_pol4(10), *image_subs.at(0), *image_subs.at(1), *image_subs.at(2), *image_subs.at(3));
-          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi4, this, _1, _2, _3, _4, group[0], group[1], group[2], group[3]));
+          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi4, this, _1, _2, _3, _4, group));
           // Append to our vector of subscribers
           sync_cam4.push_back(sync);
           sync_subs_cam.insert(sync_subs_cam.end(), image_subs.begin(), image_subs.end());
@@ -207,7 +207,7 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
           PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[3].c_str());
         } else if (group.size() == 5) {
           auto sync = std::make_shared<message_filters::Synchronizer<sync_pol5>>(sync_pol5(10), *image_subs.at(0), *image_subs.at(1), *image_subs.at(2), *image_subs.at(3), *image_subs.at(4));
-          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi5, this, _1, _2, _3, _4, _5, group[0], group[1], group[2], group[3], group[4]));
+          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi5, this, _1, _2, _3, _4, _5, group));
           // Append to our vector of subscribers
           sync_cam5.push_back(sync);
           sync_subs_cam.insert(sync_subs_cam.end(), image_subs.begin(), image_subs.end());
@@ -218,7 +218,7 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
           PRINT_DEBUG("subscribing to cam (synced-multi): %s\n", cam_topics[4].c_str());
         } else if (group.size() == 6) {
           auto sync = std::make_shared<message_filters::Synchronizer<sync_pol6>>(sync_pol6(10), *image_subs.at(0), *image_subs.at(1), *image_subs.at(2), *image_subs.at(3), *image_subs.at(4), *image_subs.at(5));
-          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi6, this, _1, _2, _3, _4, _5, _6, group[0], group[1], group[2], group[3], group[4], group[5]));
+          sync->registerCallback(boost::bind(&ROS1Visualizer::callback_multi6, this, _1, _2, _3, _4, _5, _6, group));
           // Append to our vector of subscribers
           sync_cam6.push_back(sync);
           sync_subs_cam.insert(sync_subs_cam.end(), image_subs.begin(), image_subs.end());
@@ -489,7 +489,9 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
     // If we do not have enough unique cameras then we need to wait
     // We should wait till we have one of each camera to ensure we propagate in the correct order
     auto params = _app->get_params();
-    size_t num_unique_cameras = (params.state_options.num_cameras == 2) ? 1 : params.state_options.num_cameras;
+    // TODO(bhirschel) in the case of multi synced cams there should also only be one unique camera (?)
+//    size_t num_unique_cameras = (params.state_options.num_cameras == 2) ? 1 : params.state_options.num_cameras;
+    size_t num_unique_cameras = params.camera_sync_groups.size(); // TODO test!!!
     if (unique_cam_ids.size() == num_unique_cameras) {
 
       // Loop through our queue and see if we are able to process any of our camera measurements
@@ -605,6 +607,9 @@ void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, con
   message.timestamp = cv_ptr0->header.stamp.toSec();
   message.sensor_ids.push_back(cam_id0);
   message.sensor_ids.push_back(cam_id1);
+
+  std::copy(_app->get_params().stereo_overlap_groups.begin(), _app->get_params().stereo_overlap_groups.end(), message.stereo_overlap_groups.begin());
+
   if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
     cv::Mat dst_img;
     cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
@@ -656,20 +661,20 @@ void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, con
 }
 
 void ROS1Visualizer::callback_multi3( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
-                      const sensor_msgs::ImageConstPtr &msg2, int cam_id0, int cam_id1, int cam_id2 ) {
+                      const sensor_msgs::ImageConstPtr &msg2, std::vector<int> &cam_id_vec) {
   PRINT_ERROR(RED "Synced multi-cam callback for 3 cameras not yet supported!\n");
 }
 
 void ROS1Visualizer::callback_multi4( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
-                      const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3, int cam_id0,
-                      int cam_id1, int cam_id2, int cam_id3 ) {
+                      const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
+                      std::vector<int> &cam_id_vec) {
   // Check if we should drop this image
   double timestamp = msg0->header.stamp.toSec();
   double time_delta = 1.0 / _app->get_params().track_frequency;
-  if (camera_last_timestamp.find(cam_id0) != camera_last_timestamp.end() && timestamp < camera_last_timestamp.at(cam_id0) + time_delta) {
+  if (camera_last_timestamp.find(cam_id_vec[0]) != camera_last_timestamp.end() && timestamp < camera_last_timestamp.at(cam_id_vec[0]) + time_delta) {
     return; // TODO(bhirschel) not only do that check for cam0
   }
-  camera_last_timestamp[cam_id0] = timestamp;
+  camera_last_timestamp[cam_id_vec[0]] = timestamp;
 
   // Get image 0
   cv_bridge::CvImageConstPtr cv_ptr0;
@@ -710,41 +715,46 @@ void ROS1Visualizer::callback_multi4( const sensor_msgs::ImageConstPtr &msg0, co
   // Create the measurement
   ov_core::CameraData message;
   message.timestamp = cv_ptr0->header.stamp.toSec();
-  message.sensor_ids.push_back(cam_id0);
-  message.sensor_ids.push_back(cam_id1);
-  message.sensor_ids.push_back(cam_id2);
-  message.sensor_ids.push_back(cam_id3);
+  message.sensor_ids.push_back(cam_id_vec[0]);
+  message.sensor_ids.push_back(cam_id_vec[1]);
+  message.sensor_ids.push_back(cam_id_vec[2]);
+  message.sensor_ids.push_back(cam_id_vec[3]);
+
+  message.stereo_overlap_groups = _app->get_params().stereo_overlap_groups;
+
+//  std::copy(_app->get_params().stereo_overlap_groups.begin(), _app->get_params().stereo_overlap_groups.end(), std::back_inserter(message.stereo_overlap_groups));
+
   // Rotation for image 0
-  if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+  if(_app->get_params().image_stream_rotations.at(cam_id_vec[0]) > 0 && _app->get_params().image_stream_rotations.at(cam_id_vec[0]) < 4) {
     cv::Mat dst_img;
-    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id_vec[0] ) - 1);
     cv::rotate(cv_ptr0->image.clone(), dst_img, flag);
     message.images.push_back(dst_img);
   } else {
     message.images.push_back(cv_ptr0->image.clone());
   }
   // Rotation for image 1
-  if(_app->get_params().image_stream_rotations.at(cam_id1) > 0 && _app->get_params().image_stream_rotations.at(cam_id1) < 4) {
+  if(_app->get_params().image_stream_rotations.at(cam_id_vec[1]) > 0 && _app->get_params().image_stream_rotations.at(cam_id_vec[1]) < 4) {
     cv::Mat dst_img;
-    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id1 ) - 1);
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id_vec[1] ) - 1);
     cv::rotate(cv_ptr1->image.clone(), dst_img, flag);
     message.images.push_back(dst_img);
   } else {
     message.images.push_back(cv_ptr1->image.clone());
   }
   // Rotation for image 2
-  if(_app->get_params().image_stream_rotations.at(cam_id2) > 0 && _app->get_params().image_stream_rotations.at(cam_id2) < 4) {
+  if(_app->get_params().image_stream_rotations.at(cam_id_vec[2]) > 0 && _app->get_params().image_stream_rotations.at(cam_id_vec[2]) < 4) {
     cv::Mat dst_img;
-    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id2 ) - 1);
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id_vec[2] ) - 1);
     cv::rotate(cv_ptr2->image.clone(), dst_img, flag);
     message.images.push_back(dst_img);
   } else {
     message.images.push_back(cv_ptr2->image.clone());
   }
   // Rotation for image 3
-  if(_app->get_params().image_stream_rotations.at(cam_id3) > 0 && _app->get_params().image_stream_rotations.at(cam_id3) < 4) {
+  if(_app->get_params().image_stream_rotations.at(cam_id_vec[3]) > 0 && _app->get_params().image_stream_rotations.at(cam_id_vec[3]) < 4) {
     cv::Mat dst_img;
-    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id3 ) - 1);
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id_vec[3] ) - 1);
     cv::rotate(cv_ptr3->image.clone(), dst_img, flag);
     message.images.push_back(dst_img);
   } else {
@@ -755,44 +765,44 @@ void ROS1Visualizer::callback_multi4( const sensor_msgs::ImageConstPtr &msg0, co
   // TODO: in the future we should get this from external pixel segmentation
   // Mask for cam 0
   if (_app->get_params().use_mask) {
-    if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+    if(_app->get_params().image_stream_rotations.at(cam_id_vec[0]) > 0 && _app->get_params().image_stream_rotations.at(cam_id_vec[0]) < 4) {
       cv::Mat rotated_mask, inverted_mask;
-      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
-      cv::rotate(_app->get_params().masks.at(cam_id0), rotated_mask, flag);
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id_vec[0] ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id_vec[0]), rotated_mask, flag);
       cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
       message.masks.push_back(inverted_mask);
     } else {
-      message.masks.push_back(_app->get_params().masks.at(cam_id0));
+      message.masks.push_back(_app->get_params().masks.at(cam_id_vec[0]));
     }
     // Mask for cam 1
-    if(_app->get_params().image_stream_rotations.at(cam_id1) > 0 && _app->get_params().image_stream_rotations.at(cam_id1) < 4) {
+    if(_app->get_params().image_stream_rotations.at(cam_id_vec[1]) > 0 && _app->get_params().image_stream_rotations.at(cam_id_vec[1]) < 4) {
       cv::Mat rotated_mask, inverted_mask;
-      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id1 ) - 1);
-      cv::rotate(_app->get_params().masks.at(cam_id1), rotated_mask, flag);
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id_vec[1] ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id_vec[1]), rotated_mask, flag);
       cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
       message.masks.push_back(inverted_mask);
     } else {
-      message.masks.push_back(_app->get_params().masks.at(cam_id1));
+      message.masks.push_back(_app->get_params().masks.at(cam_id_vec[1]));
     }
     // Mask for cam 2
-    if(_app->get_params().image_stream_rotations.at(cam_id2) > 0 && _app->get_params().image_stream_rotations.at(cam_id2) < 4) {
+    if(_app->get_params().image_stream_rotations.at(cam_id_vec[2]) > 0 && _app->get_params().image_stream_rotations.at(cam_id_vec[2]) < 4) {
       cv::Mat rotated_mask, inverted_mask;
-      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id2 ) - 1);
-      cv::rotate(_app->get_params().masks.at(cam_id2), rotated_mask, flag);
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id_vec[2] ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id_vec[2]), rotated_mask, flag);
       cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
       message.masks.push_back(inverted_mask);
     } else {
-      message.masks.push_back(_app->get_params().masks.at(cam_id2));
+      message.masks.push_back(_app->get_params().masks.at(cam_id_vec[2]));
     }
     // Mask for cam 3
-    if(_app->get_params().image_stream_rotations.at(cam_id3) > 0 && _app->get_params().image_stream_rotations.at(cam_id3) < 4) {
+    if(_app->get_params().image_stream_rotations.at(cam_id_vec[3]) > 0 && _app->get_params().image_stream_rotations.at(cam_id_vec[3]) < 4) {
       cv::Mat rotated_mask, inverted_mask;
-      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id3 ) - 1);
-      cv::rotate(_app->get_params().masks.at(cam_id3), rotated_mask, flag);
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id_vec[3] ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id_vec[3]), rotated_mask, flag);
       cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
       message.masks.push_back(inverted_mask);
     } else {
-      message.masks.push_back(_app->get_params().masks.at(cam_id3));
+      message.masks.push_back(_app->get_params().masks.at(cam_id_vec[3]));
     }
   } else {
     message.masks.push_back(cv::Mat::zeros(cv_ptr0->image.rows, cv_ptr0->image.cols, CV_8UC1));
@@ -809,15 +819,14 @@ void ROS1Visualizer::callback_multi4( const sensor_msgs::ImageConstPtr &msg0, co
 
 void ROS1Visualizer::callback_multi5( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
                       const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
-                      const sensor_msgs::ImageConstPtr &msg4, int cam_id0, int cam_id1, int cam_id2, int cam_id3,
-                      int cam_id4 ) {
+                      const sensor_msgs::ImageConstPtr &msg4, std::vector<int> &cam_id_vec) {
   PRINT_ERROR(RED "Synced multi-cam callback for 5 cameras not yet supported!\n");
 }
 
 void ROS1Visualizer::callback_multi6( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
                       const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
-                      const sensor_msgs::ImageConstPtr &msg4, const sensor_msgs::ImageConstPtr &msg5, int cam_id0,
-                      int cam_id1, int cam_id2, int cam_id3, int cam_id4, int cam_id5 ) {
+                      const sensor_msgs::ImageConstPtr &msg4, const sensor_msgs::ImageConstPtr &msg5,
+                      std::vector<int> &cam_id_vec) {
   PRINT_ERROR(RED "Synced multi-cam callback for 6 cameras not yet supported!\n");
 }
 

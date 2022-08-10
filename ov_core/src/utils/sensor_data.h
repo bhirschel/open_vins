@@ -60,6 +60,9 @@ struct CameraData {
   /// Camera ids for each of the images collected
   std::vector<int> sensor_ids;
 
+  /// Grouping that shows what cameras overlap each other
+  std::vector<std::vector<int>> stereo_overlap_groups;
+
   /// Raw image we have collected for each camera
   std::vector<cv::Mat> images;
 

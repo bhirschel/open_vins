@@ -38,21 +38,67 @@ void TrackKLT::feed_new_camera(const CameraData &message) {
 
   // Either call our stereo or monocular version
   // If we are doing binocular tracking, then we should parallize our tracking
+//  size_t num_images = message.images.size();
+//  if (num_images == 1) {
+//    feed_monocular(message, 0);
+//  } else if (num_images == 2 && use_stereo) {
+//    feed_stereo(message, 0, 1);
+//  } else if (!use_stereo) {
+//    parallel_for_(cv::Range(0, (int)num_images), LambdaBody([&](const cv::Range &range) {
+//                    for (int i = range.start; i < range.end; i++) {
+////                      PRINT_DEBUG(YELLOW "[KLT-feeder] feeding monocular cam for camID %d \n" RESET, i);
+//                      feed_monocular(message, i);
+//                    }
+//                  }));
+//  } else {
+//    PRINT_ERROR(RED "[ERROR]: invalid number of images passed %zu, we only support mono or stereo tracking", num_images);
+//    std::exit(EXIT_FAILURE);
+//  }
+
   size_t num_images = message.images.size();
   if (num_images == 1) {
-    feed_monocular(message, 0);
-  } else if (num_images == 2 && use_stereo) {
-    feed_stereo(message, 0, 1);
-  } else if (!use_stereo) {
-    parallel_for_(cv::Range(0, (int)num_images), LambdaBody([&](const cv::Range &range) {
-                    for (int i = range.start; i < range.end; i++) {
-//                      PRINT_DEBUG(YELLOW "[KLT-feeder] feeding monocular cam for camID %d \n" RESET, i);
-                      feed_monocular(message, i);
-                    }
-                  }));
-  } else {
-    PRINT_ERROR(RED "[ERROR]: invalid number of images passed %zu, we only support mono or stereo tracking", num_images);
-    std::exit(EXIT_FAILURE);
+    feed_monocular(message, message.sensor_ids[0]);
+  }
+
+  if (!message.stereo_overlap_groups.empty()) {
+    std::vector<int> processed_ids;
+
+    // TODO(bhirschel) evaluate possibilities for parallel_for
+    for (auto & group : message.stereo_overlap_groups) {
+      bool group_ids_in_msg = true;
+
+      // Validate that all group_ids from this stereo overlap group are part of this CameraData message
+      for (auto & group_id : group) {
+        if (std::find(message.sensor_ids.begin(), message.sensor_ids.end(), group_id)==message.sensor_ids.end()) {
+          group_ids_in_msg = false;
+          break;
+        }
+      }
+
+      if (!group_ids_in_msg) {
+        continue;
+      }
+
+      if (group.size() == 1) {
+        processed_ids.insert(processed_ids.end(), group.begin(), group.end());
+        feed_monocular(message, group[0]);
+      } else if (group.size() == 2) {
+        processed_ids.insert(processed_ids.end(), group.begin(), group.end());
+        feed_stereo(message, group[0], group[1]);
+      } else {
+        PRINT_ERROR(RED "[ERROR]: invalid number of images grouped as stereo overlap group (Size %zu), we only support mono or stereo tracking", group.size());
+        std::exit(EXIT_FAILURE);
+      }
+    }
+    //Validate that all msg ids were processed
+    std::vector<int> msg_id_copy, diff;
+    std::copy( message.sensor_ids.begin(), message.sensor_ids.end(), std::back_inserter(msg_id_copy));
+    std::sort(msg_id_copy.begin(), msg_id_copy.end());
+    std::sort(processed_ids.begin(), processed_ids.end());
+    std::set_difference(msg_id_copy.begin(), msg_id_copy.end(), processed_ids.begin(), processed_ids.end(), std::back_inserter(diff));
+    for (auto & id : diff) {
+      feed_monocular(message, id);
+    }
   }
 }
 
