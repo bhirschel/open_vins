@@ -87,6 +87,36 @@ VioManager::VioManager(VioManagerOptions &params_) : thread_init_running(false),
     of_statistics << "re-tri & marg,total" << std::endl;
   }
 
+  // If we are recording feature tracking statistics, then open our file
+  if (params.record_feature_tracking_stats) {
+    // If the file exists, then delete it
+    // TODO(bhirschel) maybe it is preferable to keep all files by automatically appending date & time to the filename
+    if (boost::filesystem::exists(params.record_feature_stats_filepath)) {
+      boost::filesystem::remove(params.record_feature_stats_filepath);
+      PRINT_INFO(YELLOW "[STATS]: found old file found, deleted...\n" RESET);
+    }
+    // Create the directory that we will open the file in
+    boost::filesystem::path p(params.record_feature_stats_filepath);
+    boost::filesystem::create_directories(p.parent_path());
+    // Open our statistics file!
+    of_feature_stats.open(params.record_feature_stats_filepath, std::ofstream::out | std::ofstream::app);
+    // Write the header information into it
+    of_feature_stats << "# timestamp (sec),total_feats,feats_lost,feats_marg,feats_maxtrack,";
+    if (state->_options.max_slam_features > 0) {
+      of_feature_stats << "feats_slam,state_slam_feats,";
+    }
+    of_feature_stats << "msckf_feats_pre,";
+    if (state->_options.max_slam_features > 0) {
+      of_feature_stats << "slam_feats_pre,";
+    }
+    of_feature_stats << "msckf_feats_past,";
+    if (state->_options.max_slam_features > 0) {
+      of_feature_stats << "slam_feats_past,";
+    }
+    of_feature_stats << std::endl;
+    of_feature_stats << "DUMP RELEVANT ESTIMATOR SETTINGS" << std::endl;
+  }
+
   //===================================================================================
   //===================================================================================
   //===================================================================================
@@ -306,11 +336,16 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
   // features that existed at the marg timestep and have reached max track length
   std::vector<std::shared_ptr<Feature>> feats_slam;
 
+  // Debug parameter
+  int dbg_total_feats, dbg_feats_lost, dbg_feats_marg, dbg_feats_maxtracks, dbg_feats_slam, dbg_state_slam_feats, dbg_msckf_feats_pre, dbg_slam_feats_pre, dbg_msckf_feats_past, dbg_slam_feats_past;
+
   // Now, lets get all features that should be used for an update that are lost in the newest frame
   // We explicitly request features that have not been deleted (used) in another update step
   feats_lost = trackFEATS->get_feature_database()->features_not_containing_newer(state->_timestamp, false, true);
 //  trackFEATS->get_feature_database()->print_track_lengths();
-  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_lost initially: %d from %d total features \n" RESET, feats_lost.size(), trackFEATS->get_feature_database()->size());
+  dbg_total_feats = trackFEATS->get_feature_database()->size();
+  dbg_feats_lost = feats_lost.size();
+  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_lost initially: %d from %d total features \n" RESET, dbg_feats_lost, dbg_total_feats);
 
   // Don't need to get the oldest features until we reach our max number of clones
   if ((int)state->_clones_IMU.size() > state->_options.max_clone_size) {
@@ -319,7 +354,8 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
       feats_slam = trackARUCO->get_feature_database()->features_containing(state->margtimestep(), false, true);
     }
   }
-  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_marg initially: %d \n" RESET, feats_marg.size());
+  dbg_feats_marg = feats_marg.size();
+  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_marg initially: %d \n" RESET, dbg_feats_marg);
 
   // Remove any lost features that were from other image streams
   // E.g: if we are cam1 and cam0 has not processed yet, we don't want to try to use those in the update yet
@@ -339,7 +375,8 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
       it1 = feats_lost.erase(it1);
     }
   }
-  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_lost after removal from other image streams: %d \n" RESET, feats_lost.size());
+  dbg_feats_lost = feats_lost.size();
+  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_lost after removal from other image streams: %d \n" RESET, dbg_feats_lost);
 
   // We also need to make sure that the max tracks does not contain any lost features
   // This could happen if the feature was lost in the last frame, but has a measurement at the marg timestep
@@ -352,7 +389,8 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
       it1++;
     }
   }
-  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_lost after removal of marg-features: %d \n" RESET, feats_lost.size());
+  dbg_feats_lost = feats_lost.size();
+  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_lost after removal of marg-features: %d \n" RESET, dbg_feats_lost);
 
   // Find tracks that have reached max length, these can be made into SLAM features
   std::vector<std::shared_ptr<Feature>> feats_maxtracks;
@@ -378,7 +416,9 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
       it2++;
     }
   }
-  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_maxtracks initially: %d \n" RESET, feats_maxtracks.size());
+  dbg_feats_marg = feats_marg.size();
+  dbg_feats_maxtracks = feats_maxtracks.size();
+  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_maxtracks initially: %d \n" RESET, dbg_feats_maxtracks);
 
   // Count how many aruco tags we have in our state
   int curr_aruco_tags = 0;
@@ -403,7 +443,8 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
       feats_maxtracks.erase(feats_maxtracks.end() - valid_amount, feats_maxtracks.end());
     }
   }
-  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_slam initially: %d \n" RESET, feats_slam.size());
+  dbg_feats_slam = feats_slam.size();
+  PRINT_DEBUG(BLUE "[Feat-Propagator] feats_slam initially: %d \n" RESET, dbg_feats_slam);
 
   // Loop through current SLAM features, we have tracks of them, grab them for this update!
   // Note: if we have a slam feature that has lost tracking, then we should marginalize it out
@@ -426,14 +467,16 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
     if (feat2 == nullptr && current_unique_cam)
       landmark.second->should_marg = true;
   }
+  dbg_state_slam_feats = state->_features_SLAM.size();
   PRINT_DEBUG(BLUE "[Feat-Propagator] feats_slam after adding state slam feats: %d \n" RESET, feats_slam.size());
-  PRINT_DEBUG(BLUE "[Feat-Propagator] State SLAM feats: %d \n" RESET, state->_features_SLAM.size());
+  PRINT_DEBUG(BLUE "[Feat-Propagator] State SLAM feats: %d \n" RESET, dbg_state_slam_feats);
 
   // Lets marginalize out all old SLAM features here
   // These are ones that where not successfully tracked into the current frame
   // We do *NOT* marginalize out our aruco tags landmarks
   StateHelper::marginalize_slam(state);
-  PRINT_DEBUG(BLUE "[Feat-Propagator] State SLAM feats after marginalizing out those not currently tracked: %d \n" RESET, state->_features_SLAM.size());
+  dbg_state_slam_feats = state->_features_SLAM.size();
+  PRINT_DEBUG(BLUE "[Feat-Propagator] State SLAM feats after marginalizing out those not currently tracked: %d \n" RESET, dbg_state_slam_feats);
 
   // Separate our SLAM features into new ones, and old ones
   // TODO(bhirschel) strange way to do this if feats_slam previously contained only the new ones anyway?! Separate them there
@@ -581,6 +624,21 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
 
   // Finally if we are saving stats to file, lets save it to file
   if (params.record_timing_information && of_statistics.is_open()) {
+    // We want to publish in the IMU clock frame
+    // The timestamp in the state will be the last camera time
+    double t_ItoC = state->_calib_dt_CAMtoIMU->value()(0);
+    double timestamp_inI = state->_timestamp + t_ItoC;
+    // Append to the file
+    of_statistics << std::fixed << std::setprecision(15) << timestamp_inI << "," << std::fixed << std::setprecision(5) << time_track << ","
+                  << time_prop << "," << time_msckf << ",";
+    if (state->_options.max_slam_features > 0) {
+      of_statistics << time_slam_update << "," << time_slam_delay << ",";
+    }
+    of_statistics << time_marg << "," << time_total << std::endl;
+    of_statistics.flush();
+  }
+
+  if (params.record_feature_tracking_stats && of_feature_stats.is_open()) {
     // We want to publish in the IMU clock frame
     // The timestamp in the state will be the last camera time
     double t_ItoC = state->_calib_dt_CAMtoIMU->value()(0);

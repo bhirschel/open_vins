@@ -8,14 +8,16 @@ use_rk4int: true # if rk4 integration should be used (overrides imu averaging)
 
 use_stereo: true # if we have more than 1 camera, if we should try to track stereo constraints between pairs
 max_cameras: 2 # how many cameras we have 1 = mono, 2 = stereo, >2 = binocular (all mono tracking)
-sync_groups: [[0,1,2,3]]
-stereo_overlap: [[0,1],[2,3]]
+#sync_groups: [[0,1,2,3]] # duo-stereo
+#stereo_overlap: [[0,1],[2,3]] # duo-stereo
+sync_groups: [[0,1]] # stereo
+stereo_overlap: [[0,1]] # stereo
 
-calib_cam_extrinsics: false # if the transform between camera and IMU should be optimized R_ItoC, p_CinI
-calib_cam_intrinsics: false # if camera intrinsics should be optimized (focal, center, distortion)
+calib_cam_extrinsics: true # if the transform between camera and IMU should be optimized R_ItoC, p_CinI
+calib_cam_intrinsics: true # if camera intrinsics should be optimized (focal, center, distortion)
 calib_cam_timeoffset: true # if timeoffset between camera and IMU should be optimized
 
-max_clones: 11 # how many clones in the sliding window
+max_clones: 5 # how many clones in the sliding window
 max_slam: 50 # number of features in our state vector
 max_slam_in_update: 25 # update can be split into sequential updates of batches, how many in a batch
 max_msckf_in_update: 40 # how many MSCKF features to use in the update
@@ -63,8 +65,8 @@ init_dyn_bias_a: [0.0, 0.0, 0.0]
 # ==================================================================
 # ==================================================================
 
-record_timing_information: false # if we want to record timing information of the method
-record_timing_filepath: "/tmp/traj_timing.txt" # https://docs.openvins.com/eval-timing.html#eval-ov-timing-flame
+record_timing_information: true # if we want to record timing information of the method
+record_timing_filepath: "tmp/traj_timing.txt" # https://docs.openvins.com/eval-timing.html#eval-ov-timing-flame
 
 # if we want to save the simulation state and its diagional covariance
 # use this with rosrun ov_eval error_simulation

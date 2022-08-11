@@ -608,7 +608,7 @@ void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, con
   message.sensor_ids.push_back(cam_id0);
   message.sensor_ids.push_back(cam_id1);
 
-  std::copy(_app->get_params().stereo_overlap_groups.begin(), _app->get_params().stereo_overlap_groups.end(), message.stereo_overlap_groups.begin());
+  message.stereo_overlap_groups = _app->get_params().stereo_overlap_groups;
 
   if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
     cv::Mat dst_img;

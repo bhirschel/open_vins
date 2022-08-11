@@ -38,8 +38,8 @@
         <param name="max_cameras"            type="int"    value="$(arg max_cameras)" />
 
         <!-- timing statistics recording -->
-        <param name="record_timing_information"   type="bool"   value="$(arg dotime)" />
-        <param name="record_timing_filepath"      type="string" value="$(arg path_time)" />
+        <!--<param name="record_timing_information"   type="bool"   value="$(arg dotime)" />-->
+        <!--<param name="record_timing_filepath"      type="string" value="$(arg path_time)" />-->
 
     </node>
 

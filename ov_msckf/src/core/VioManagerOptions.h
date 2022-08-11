@@ -97,6 +97,12 @@ struct VioManagerOptions {
   /// The path to the file we will record the timing information into
   std::string record_timing_filepath = "ov_msckf_timing.txt";
 
+  /// If we should record feature tracking stats to file
+  bool record_feature_tracking_stats = false;
+
+  /// The path to the file we will record the feature tracking stats into
+  std::string record_feature_stats_filepath = "ov_msckf_feature_stats.txt";
+
   /**
    * @brief This function will load print out all estimator settings loaded.
    * This allows for visual checking that everything was loaded properly from ROS/CMD parsers.
@@ -123,7 +129,7 @@ struct VioManagerOptions {
     PRINT_DEBUG("  - zupt_noise_multiplier: %.2f\n", zupt_noise_multiplier);
     PRINT_DEBUG("  - zupt_max_disparity: %.4f\n", zupt_max_disparity);
     PRINT_DEBUG("  - zupt_only_at_beginning?: %d\n", zupt_only_at_beginning);
-    PRINT_DEBUG("  - record timing?: %d\n", (int)record_timing_information);
+    PRINT_DEBUG("  - record timing?: %s\n", record_timing_information ? "true" : "false");
     PRINT_DEBUG("  - record timing filepath: %s\n", record_timing_filepath.c_str());
   }
 
