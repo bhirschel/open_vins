@@ -42,7 +42,7 @@ void UpdaterSLAM::delayed_init(std::shared_ptr<State> state, std::vector<std::sh
   }
 
   // 1. Clean all feature measurements and make sure they all have valid clone times
-  PRINT_DEBUG(BLUE "[UPDATER-SLAM] slam feats initially: %d \n" RESET, feature_vec.size());
+//  PRINT_DEBUG(BLUE "[UPDATER-SLAM] slam feats initially: %d \n" RESET, feature_vec.size());
   auto it0 = feature_vec.begin();
   while (it0 != feature_vec.end()) {
 
@@ -63,7 +63,7 @@ void UpdaterSLAM::delayed_init(std::shared_ptr<State> state, std::vector<std::sh
       it0++;
     }
   }
-  PRINT_DEBUG(BLUE "[UPDATER-SLAM] slam feats after measurement cleaning: %d \n" RESET, feature_vec.size());
+//  PRINT_DEBUG(BLUE "[UPDATER-SLAM] slam feats after measurement cleaning: %d \n" RESET, feature_vec.size());
   rT1 = boost::posix_time::microsec_clock::local_time();
 
   // 2. Create vector of cloned *CAMERA* poses at each of our clone timesteps
@@ -112,7 +112,7 @@ void UpdaterSLAM::delayed_init(std::shared_ptr<State> state, std::vector<std::sh
     }
     it1++;
   }
-  PRINT_DEBUG(BLUE "[UPDATER-SLAM] slam feats after triangulation: %d \n" RESET, feature_vec.size());
+//  PRINT_DEBUG(BLUE "[UPDATER-SLAM] slam feats after triangulation: %d \n" RESET, feature_vec.size());
   rT2 = boost::posix_time::microsec_clock::local_time();
 
   // 4. Compute linear system for each feature, nullspace project, and reject
@@ -220,11 +220,11 @@ void UpdaterSLAM::delayed_init(std::shared_ptr<State> state, std::vector<std::sh
   }
 }
 
-void UpdaterSLAM::update(std::shared_ptr<State> state, std::vector<std::shared_ptr<Feature>> &feature_vec) {
+size_t UpdaterSLAM::update(std::shared_ptr<State> state, std::vector<std::shared_ptr<Feature>> &feature_vec) {
 
   // Return if no features
   if (feature_vec.empty())
-    return;
+    return 0;
 
   // Start timing
   boost::posix_time::ptime rT0, rT1, rT2, rT3;
@@ -425,7 +425,7 @@ void UpdaterSLAM::update(std::shared_ptr<State> state, std::vector<std::shared_p
 
   // Return if we don't have anything and resize our matrices
   if (ct_meas < 1) {
-    return;
+    return 0;
   }
   assert(ct_meas <= max_meas_size);
   assert(ct_jacob <= max_hx_size);
@@ -443,6 +443,8 @@ void UpdaterSLAM::update(std::shared_ptr<State> state, std::vector<std::shared_p
   PRINT_DEBUG("[SLAM-UP]: %.4f seconds to update (%d feats of %d size)\n", (rT3 - rT2).total_microseconds() * 1e-6, (int)feature_vec.size(),
               (int)Hx_big.rows());
   PRINT_DEBUG("[SLAM-UP]: %.4f seconds total\n", (rT3 - rT1).total_microseconds() * 1e-6);
+
+  return feature_vec.size();
 }
 
 void UpdaterSLAM::change_anchors(std::shared_ptr<State> state) {

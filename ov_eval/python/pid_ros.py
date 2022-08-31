@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import datetime
 # OpenVINS: An Open Platform for Visual-Inertial Research
 # Copyright (C) 2019 Patrick Geneva
 # Copyright (C) 2019 OpenVINS Contributors
@@ -23,6 +23,7 @@ import rosnode
 import rospy
 import sys
 import time
+from datetime import datetime
 
 try:
     from xmlrpc.client import ServerProxy
@@ -69,6 +70,8 @@ if __name__ == '__main__':
     node_csv = rospy.get_param("~nodes")
     node_list = node_csv.split(',')
     save_path = rospy.get_param("~output")
+
+    save_path = save_path.replace(".txt", datetime.today().strftime('_%Y-%m-%d-%H-%M-%S.txt'), 1)
 
     # debug print to console
     rospy.loginfo("processes: %s (%d in total)" % (node_csv, len(node_list)))

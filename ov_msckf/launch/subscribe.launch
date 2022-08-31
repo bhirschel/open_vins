@@ -1,13 +1,13 @@
 <launch>
 
     <!-- what config we are going to run (should match folder name) -->
-    <arg name="verbosity"   default="DEBUG" /> <!-- ALL, DEBUG, INFO, WARNING, ERROR, SILENT -->
+    <arg name="verbosity"   default="INFO" /> <!-- ALL, DEBUG, INFO, WARNING, ERROR, SILENT -->
     <arg name="config"      default="asterix" /> <!-- euroc_mav, tum_vi, rpng_aruco -->
     <arg name="config_path" default="$(find ov_msckf)/../config/$(arg config)/estimator_config.yaml" />
 
     <!-- mono or stereo and what ros bag to play -->
-    <arg name="max_cameras" default="2" />
-    <arg name="use_stereo"  default="true" />
+<!--     <arg name="max_cameras" default="2" /> -->
+<!--     <arg name="use_stereo"  default="true" /> -->
     <arg name="bag_start"   default="0" /> <!-- v1-2: 0, mh1: 40, mh2: 35, mh3: 17.5, mh4-5: 15 -->
     <arg name="dataset"     default="V1_02_medium" /> <!-- V1_01_easy, V1_02_medium, V2_02_medium -->
     <arg name="dobag"       default="false" /> <!-- if we should play back the bag -->
@@ -15,9 +15,15 @@
 <!--    <arg name="bag"         default="/datasets/$(arg config)/$(arg dataset).bag" />-->
 
     <!-- saving trajectory path and timing information -->
-    <arg name="dosave"      default="false" />
-    <arg name="dotime"      default="false" />
-    <arg name="path_est"    default="/tmp/traj_estimate.txt" />
+    <arg name="save_total_state"          default="false" />
+    <arg name="save_estimation"           default="true" />
+    <arg name="dotime"                    default="false" />
+    <arg name="filepath_est_error_sim"    default="ov_msckf/error_sim/ov_estimate_error_sim.txt" />
+    <arg name="filepath_std_error_sim"    default="ov_msckf/error_sim/ov_estimate_std_error_sim.txt" />
+    <arg name="filepath_gt_error_sim"     default="ov_msckf/error_sim/ov_groundtruth_error_sim.txt" />
+
+    <arg name="filepath_est"    default="ov_msckf/estimation/ov_estimate.txt" />
+
     <arg name="path_time"   default="/tmp/traj_timing.txt" />
 
     <!-- if we should viz the groundtruth -->
@@ -34,14 +40,24 @@
         <param name="config_path"            type="string" value="$(arg config_path)" />
 
         <!-- world/filter parameters -->
-        <param name="use_stereo"             type="bool"   value="$(arg use_stereo)" />
-        <param name="max_cameras"            type="int"    value="$(arg max_cameras)" />
+<!--         <param name="use_stereo"             type="bool"   value="$(arg use_stereo)" /> -->
+<!--         <param name="max_cameras"            type="int"    value="$(arg max_cameras)" /> -->
 
         <!-- timing statistics recording -->
         <!--<param name="record_timing_information"   type="bool"   value="$(arg dotime)" />-->
         <!--<param name="record_timing_filepath"      type="string" value="$(arg path_time)" />-->
 
+        <param name="save_total_state"        type="bool" value="$(arg save_total_state)" />
+        <param name="filepath_est_error_sim"            type="string" value="$(arg filepath_est_error_sim)" />
+        <param name="filepath_std_error_sim"            type="string" value="$(arg filepath_std_error_sim)" />
+        <param name="filepath_gt_error_sim"             type="string" value="$(arg filepath_gt_error_sim)" />
+
     </node>
+
+<!--     <node name="recorder_timing" pkg="ov_eval" type="pid_ros.py" output="screen"> -->
+<!--         <param name="nodes"   type="str" value="/run_subscribe_msckf" /> -->
+<!--         <param name="output"  type="str" value="ov_msckf/computational_load/psutil_log.txt" /> -->
+<!--     </node> -->
 
     <!-- play the dataset -->
     <group if="$(arg dobag)">
@@ -49,11 +65,11 @@
     </group>
 
     <!-- record the trajectory if enabled -->
-    <group if="$(arg dosave)">
+    <group if="$(arg save_estimation)">
         <node name="recorder_estimate" pkg="ov_eval" type="pose_to_file" output="screen" required="true">
             <param name="topic"      type="str" value="/ov_msckf/poseimu" />
             <param name="topic_type" type="str" value="PoseWithCovarianceStamped" />
-            <param name="output"     type="str" value="$(arg path_est)" />
+            <param name="output"     type="str" value="$(arg filepath_est)" />
         </node>
     </group>
 

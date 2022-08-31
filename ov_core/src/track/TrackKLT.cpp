@@ -55,50 +55,52 @@ void TrackKLT::feed_new_camera(const CameraData &message) {
 //    std::exit(EXIT_FAILURE);
 //  }
 
-  size_t num_images = message.images.size();
-  if (num_images == 1) {
-    feed_monocular(message, message.sensor_ids[0]);
+//  size_t num_images = message.images.size();
+//  if (num_images == 1) {
+//    feed_monocular(message, message.sensor_ids[0]);
+//  }
+
+  std::vector<int> processed_ids;
+
+  // TODO(bhirschel) evaluate possibilities for parallel_for
+  for (auto & group : message.stereo_overlap_groups) {
+    bool group_ids_in_msg = true;
+
+    // Validate that all group_ids from this stereo overlap group are part of this CameraData message
+    for (auto & group_id : group) {
+      if (std::find(message.sensor_ids.begin(), message.sensor_ids.end(), group_id)==message.sensor_ids.end()) {
+        group_ids_in_msg = false;
+        break;
+      }
+    }
+
+    if (!group_ids_in_msg) {
+      continue;
+    }
+
+    if (group.size() == 1) {
+      processed_ids.insert(processed_ids.end(), group.begin(), group.end());
+      size_t msg_id = std::find(message.sensor_ids.begin(), message.sensor_ids.end(), group[0]) - message.sensor_ids.begin();
+      feed_monocular(message, msg_id);
+    } else if (group.size() == 2) {
+      processed_ids.insert(processed_ids.end(), group.begin(), group.end());
+      size_t msg_id_left = std::find(message.sensor_ids.begin(), message.sensor_ids.end(), group[0]) - message.sensor_ids.begin();
+      size_t msg_id_right = std::find(message.sensor_ids.begin(), message.sensor_ids.end(), group[1]) - message.sensor_ids.begin();
+      feed_stereo(message, msg_id_left, msg_id_right);
+    } else {
+      PRINT_ERROR(RED "[ERROR]: invalid number of images grouped as stereo overlap group (Size %zu), we only support mono or stereo tracking", group.size());
+      std::exit(EXIT_FAILURE);
+    }
   }
-
-  if (!message.stereo_overlap_groups.empty()) {
-    std::vector<int> processed_ids;
-
-    // TODO(bhirschel) evaluate possibilities for parallel_for
-    for (auto & group : message.stereo_overlap_groups) {
-      bool group_ids_in_msg = true;
-
-      // Validate that all group_ids from this stereo overlap group are part of this CameraData message
-      for (auto & group_id : group) {
-        if (std::find(message.sensor_ids.begin(), message.sensor_ids.end(), group_id)==message.sensor_ids.end()) {
-          group_ids_in_msg = false;
-          break;
-        }
-      }
-
-      if (!group_ids_in_msg) {
-        continue;
-      }
-
-      if (group.size() == 1) {
-        processed_ids.insert(processed_ids.end(), group.begin(), group.end());
-        feed_monocular(message, group[0]);
-      } else if (group.size() == 2) {
-        processed_ids.insert(processed_ids.end(), group.begin(), group.end());
-        feed_stereo(message, group[0], group[1]);
-      } else {
-        PRINT_ERROR(RED "[ERROR]: invalid number of images grouped as stereo overlap group (Size %zu), we only support mono or stereo tracking", group.size());
-        std::exit(EXIT_FAILURE);
-      }
-    }
-    //Validate that all msg ids were processed
-    std::vector<int> msg_id_copy, diff;
-    std::copy( message.sensor_ids.begin(), message.sensor_ids.end(), std::back_inserter(msg_id_copy));
-    std::sort(msg_id_copy.begin(), msg_id_copy.end());
-    std::sort(processed_ids.begin(), processed_ids.end());
-    std::set_difference(msg_id_copy.begin(), msg_id_copy.end(), processed_ids.begin(), processed_ids.end(), std::back_inserter(diff));
-    for (auto & id : diff) {
-      feed_monocular(message, id);
-    }
+  //Validate that all msg ids were processed and feed those left out as monocular. Also valid for empty stereo overlap group parameter
+  std::vector<int> msg_id_copy, diff;
+  std::copy( message.sensor_ids.begin(), message.sensor_ids.end(), std::back_inserter(msg_id_copy));
+  std::sort(msg_id_copy.begin(), msg_id_copy.end());
+  std::sort(processed_ids.begin(), processed_ids.end());
+  std::set_difference(msg_id_copy.begin(), msg_id_copy.end(), processed_ids.begin(), processed_ids.end(), std::back_inserter(diff));
+  for (auto & id : diff) {
+    size_t msg_id = std::find(message.sensor_ids.begin(), message.sensor_ids.end(), id) - message.sensor_ids.begin();
+    feed_monocular(message, msg_id);
   }
 }
 
@@ -155,6 +157,7 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
     // Detect new features
     perform_detection_monocular(imgpyr, mask, pts_last[cam_id], ids_last[cam_id]);
     // Save the current image and pyramid
+    orig_image_timestamps[cam_id] = message.timestamps_camera_msgs[msg_id];
     img_last[cam_id] = img;
     img_pyramid_last[cam_id] = imgpyr;
     img_mask_last[cam_id] = mask;
@@ -178,6 +181,7 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
 
   // If any of our mask is empty, that means we didn't have enough to do ransac, so just return
   if (mask_ll.empty()) {
+    orig_image_timestamps[cam_id] = message.timestamps_camera_msgs[msg_id];
     img_last[cam_id] = img;
     img_pyramid_last[cam_id] = imgpyr;
     img_mask_last[cam_id] = mask;
@@ -216,6 +220,7 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
   }
 
   // Move forward in time
+  orig_image_timestamps[cam_id] = message.timestamps_camera_msgs[msg_id];
   img_last[cam_id] = img;
   img_pyramid_last[cam_id] = imgpyr;
   img_mask_last[cam_id] = mask;
@@ -278,6 +283,8 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
     perform_detection_stereo(imgpyr_left, imgpyr_right, mask_left, mask_right, cam_id_left, cam_id_right, pts_last[cam_id_left],
                              pts_last[cam_id_right], ids_last[cam_id_left], ids_last[cam_id_right]);
     // Save the current image and pyramid
+    orig_image_timestamps[cam_id_left] = message.timestamps_camera_msgs[msg_id_left];
+    orig_image_timestamps[cam_id_right] = message.timestamps_camera_msgs[msg_id_right];
     img_last[cam_id_left] = img_left;
     img_last[cam_id_right] = img_right;
     img_pyramid_last[cam_id_left] = imgpyr_left;
@@ -327,6 +334,8 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
   // If any of our masks are empty, that means we didn't have enough to do ransac, so just return
   // TODO(bhirschel) if it is "any" why is "all" enforced
   if (mask_ll.empty() && mask_rr.empty()) {
+    orig_image_timestamps[cam_id_left] = message.timestamps_camera_msgs[msg_id_left];
+    orig_image_timestamps[cam_id_right] = message.timestamps_camera_msgs[msg_id_right];
     img_last[cam_id_left] = img_left;
     img_last[cam_id_right] = img_right;
     img_pyramid_last[cam_id_left] = imgpyr_left;
@@ -409,6 +418,8 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
   }
 
   // Move forward in time
+  orig_image_timestamps[cam_id_left] = message.timestamps_camera_msgs[msg_id_left];
+  orig_image_timestamps[cam_id_right] = message.timestamps_camera_msgs[msg_id_right];
   img_last[cam_id_left] = img_left;
   img_last[cam_id_right] = img_right;
   img_pyramid_last[cam_id_left] = imgpyr_left;
@@ -428,10 +439,6 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
   // PRINT_DEBUG("[TIME-KLT]: %.4f seconds for stereo klt\n",(rT5-rT4).total_microseconds() * 1e-6);
   // PRINT_DEBUG("[TIME-KLT]: %.4f seconds for feature DB update (%d features)\n",(rT6-rT5).total_microseconds() * 1e-6,
   // (int)good_left.size()); PRINT_DEBUG("[TIME-KLT]: %.4f seconds for total\n",(rT6-rT1).total_microseconds() * 1e-6);
-}
-
-void TrackKLT::feed_multi_cam( const CameraData &message, std::vector<size_t> msg_id_list ) {
-
 }
 
 void TrackKLT::perform_detection_monocular(const std::vector<cv::Mat> &img0pyr, const cv::Mat &mask0, std::vector<cv::KeyPoint> &pts0,

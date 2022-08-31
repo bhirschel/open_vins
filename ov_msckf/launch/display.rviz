@@ -5,8 +5,9 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /TF1
         - /TF1/Frames1
+        - /Image Tracks1
+        - /MSCKF Points1
       Splitter Ratio: 0.6011396050453186
     Tree Height: 1026
   - Class: rviz/Selection
@@ -272,20 +273,12 @@ Visualization Manager:
       Show Names: true
       Tree:
         global:
-          imu:
-            cam0:
-              {}
-            cam1:
-              {}
-            cam2:
-              {}
-            cam3:
-              {}
+          {}
       Update Interval: 0
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /ov_msckf/trackhist
+      Image Topic: /ov_msckf/msckf_img
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -523,7 +516,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.644041061401367
+      Distance: 2.763557195663452
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -539,9 +532,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4353982210159302
+      Pitch: 0.7047967314720154
       Target Frame: imu
-      Yaw: 0.6853983402252197
+      Yaw: 5.123565673828125
     Saved: ~
 Window Geometry:
   Current Depths:
@@ -563,5 +556,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 3539
-  X: 301
-  Y: 54
+  X: 1700
+  Y: 570

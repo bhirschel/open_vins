@@ -77,11 +77,11 @@ public:
    */
   void feed_measurement_imu(const ov_core::ImuData &message) {
 
-    // Get the oldest camera timestamp that we can remove IMU measurements before
-    // Then push back to our propagator and pass the IMU time we can delete up to
-    double oldest_time = trackFEATS->get_feature_database()->get_oldest_timestamp();
-    if (oldest_time != -1) {
-      oldest_time += params.calib_camimu_dt;
+    // The oldest time we need IMU with is the last clone
+    // We shouldn't really need the whole window, but if we go backwards in time we will
+    double oldest_time = state->margtimestep();
+    if (oldest_time > state->_timestamp) {
+      oldest_time = -1;
     }
     propagator->feed_imu(message, oldest_time);
 
@@ -171,6 +171,28 @@ public:
   std::shared_ptr<Propagator> get_propagator() { return propagator; }
 
   /// Get a nice visualization image of what tracks we have
+  cv::Mat get_active_msckf_viz_image() {
+
+    // Build an id-list of what features we should highlight (i.e. SLAM)
+//    std::vector<size_t> highlighted_ids;
+//    for (const auto &feat : state->_features_SLAM) {
+//      highlighted_ids.push_back(feat.first);
+//    }
+
+    // Text we will overlay if needed
+    std::string overlay = (did_zupt_update) ? "zvupt" : "";
+    overlay = (!is_initialized_vio) ? "init" : overlay;
+
+    // Get the current active tracks
+    cv::Mat img_history;
+
+    trackFEATS->display_msckf_history(img_history, 255, 255, 0, 255, 255, 255, good_features_MSCKF_ids, overlay);
+
+    // Finally return the image
+    return img_history;
+  }
+
+  /// Get a nice visualization image of what tracks we have
   cv::Mat get_historical_viz_image() {
 
     // Build an id-list of what features we should highlight (i.e. SLAM)
@@ -190,6 +212,8 @@ public:
       trackARUCO->display_history(img_history, 0, 255, 255, 255, 255, 255, highlighted_ids, overlay);
       // trackARUCO->display_active(img_history, 0, 255, 255, 255, 255, 255, overlay);
     }
+
+    trackFEATS->display_msckf_history(img_history, 255, 255, 0, 255, 255, 255, highlighted_ids, overlay);
 
     // Finally return the image
     return img_history;
@@ -358,6 +382,7 @@ protected:
 
   // Good features that where used in the last update (used in visualization)
   std::vector<Eigen::Vector3d> good_features_MSCKF;
+  std::vector<size_t> good_features_MSCKF_ids;
 
   /// Feature initializer used to triangulate all active tracks
   std::shared_ptr<ov_core::FeatureInitializer> active_tracks_initializer;

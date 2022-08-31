@@ -56,6 +56,9 @@ ROS1Visualizer::ROS1Visualizer(std::shared_ptr<ros::NodeHandle> nh, std::shared_
   it_pub_tracks = it.advertise("/ov_msckf/trackhist", 2);
   PRINT_DEBUG("Publishing: %s\n", it_pub_tracks.getTopic().c_str());
 
+  it_pub_msckf_img = it.advertise("/ov_msckf/msckf_img", 2);
+  PRINT_DEBUG("Publishing: %s\n", it_pub_msckf_img.getTopic().c_str());
+
   // Groundtruth publishers
   pub_posegt = nh->advertise<geometry_msgs::PoseStamped>("/ov_msckf/posegt", 2);
   PRINT_DEBUG("Publishing: %s\n", pub_posegt.getTopic().c_str());
@@ -89,35 +92,57 @@ ROS1Visualizer::ROS1Visualizer(std::shared_ptr<ros::NodeHandle> nh, std::shared_
 
   // If the file is not open, then open the file
   if (save_total_state) {
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "_%Y-%m-%d-%H-%M-%S");
+    auto date_str = oss.str();
 
     // files we will open
-    std::string filepath_est, filepath_std, filepath_gt;
-    nh->param<std::string>("filepath_est", filepath_est, "state_estimate.txt");
-    nh->param<std::string>("filepath_std", filepath_std, "state_deviation.txt");
-    nh->param<std::string>("filepath_gt", filepath_gt, "state_groundtruth.txt");
+    std::string filepath_est_error_sim, filepath_std_error_sim, filepath_gt_error_sim;
+    nh->param<std::string>("filepath_est_error_sim", filepath_est_error_sim, "state_estimate.txt");
+    nh->param<std::string>("filepath_std_error_sim", filepath_std_error_sim, "state_deviation.txt");
+    nh->param<std::string>("filepath_gt_error_sim", filepath_gt_error_sim, "state_groundtruth.txt");
+
+    size_t pos_of_file_ending_est = filepath_est_error_sim.rfind(".txt");
+    if (pos_of_file_ending_est != std::string::npos) {
+      filepath_est_error_sim.insert(pos_of_file_ending_est, date_str);
+    }
+    size_t pos_of_file_ending_std = filepath_std_error_sim.rfind(".txt");
+    if (pos_of_file_ending_std != std::string::npos) {
+      filepath_std_error_sim.insert(pos_of_file_ending_std, date_str);
+    }
+    size_t pos_of_file_ending_gt = filepath_gt_error_sim.rfind(".txt");
+    if (pos_of_file_ending_gt != std::string::npos) {
+      filepath_gt_error_sim.insert(pos_of_file_ending_gt, date_str);
+    }
+
+    PRINT_INFO("Preparing file to write state estimate to %s\n", filepath_est_error_sim.c_str());
+    PRINT_INFO("Preparing file to write state deviation to %s\n", filepath_std_error_sim.c_str());
+    PRINT_INFO("Preparing file to write groundtruth to %s\n", filepath_gt_error_sim.c_str());
 
     // If it exists, then delete it
-    if (boost::filesystem::exists(filepath_est))
-      boost::filesystem::remove(filepath_est);
-    if (boost::filesystem::exists(filepath_std))
-      boost::filesystem::remove(filepath_std);
+    if (boost::filesystem::exists(filepath_est_error_sim))
+      boost::filesystem::remove(filepath_est_error_sim);
+    if (boost::filesystem::exists(filepath_std_error_sim))
+      boost::filesystem::remove(filepath_std_error_sim);
 
     // Create folder path to this location if not exists
-    boost::filesystem::create_directories(boost::filesystem::path(filepath_est.c_str()).parent_path());
-    boost::filesystem::create_directories(boost::filesystem::path(filepath_std.c_str()).parent_path());
-    boost::filesystem::create_directories(boost::filesystem::path(filepath_gt.c_str()).parent_path());
+    boost::filesystem::create_directories(boost::filesystem::path(filepath_est_error_sim.c_str()).parent_path());
+    boost::filesystem::create_directories(boost::filesystem::path(filepath_std_error_sim.c_str()).parent_path());
+    boost::filesystem::create_directories(boost::filesystem::path(filepath_gt_error_sim.c_str()).parent_path());
 
     // Open the files
-    of_state_est.open(filepath_est.c_str());
-    of_state_std.open(filepath_std.c_str());
+    of_state_est.open(filepath_est_error_sim.c_str());
+    of_state_std.open(filepath_std_error_sim.c_str());
     of_state_est << "# timestamp(s) q p v bg ba cam_imu_dt num_cam cam0_k cam0_d cam0_rot cam0_trans .... etc" << std::endl;
     of_state_std << "# timestamp(s) q p v bg ba cam_imu_dt num_cam cam0_k cam0_d cam0_rot cam0_trans .... etc" << std::endl;
 
     // Groundtruth if we are simulating
     if (_sim != nullptr) {
-      if (boost::filesystem::exists(filepath_gt))
-        boost::filesystem::remove(filepath_gt);
-      of_state_gt.open(filepath_gt.c_str());
+      if (boost::filesystem::exists(filepath_gt_error_sim))
+        boost::filesystem::remove(filepath_gt_error_sim);
+      of_state_gt.open(filepath_gt_error_sim.c_str());
       of_state_gt << "# timestamp(s) q p v bg ba cam_imu_dt num_cam cam0_k cam0_d cam0_rot cam0_trans .... etc" << std::endl;
     }
   }
@@ -291,8 +316,11 @@ void ROS1Visualizer::visualize() {
   boost::posix_time::ptime rT0_1, rT0_2;
   rT0_1 = boost::posix_time::microsec_clock::local_time();
 
-  // publish current image
-  publish_images();
+  // publish current msckf features in image
+  publish_msckf_images();
+
+  // publish history image
+  publish_history_images();
 
   // Return if we have not inited
   if (!_app->initialized())
@@ -489,9 +517,7 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
     // If we do not have enough unique cameras then we need to wait
     // We should wait till we have one of each camera to ensure we propagate in the correct order
     auto params = _app->get_params();
-    // TODO(bhirschel) in the case of multi synced cams there should also only be one unique camera (?)
-//    size_t num_unique_cameras = (params.state_options.num_cameras == 2) ? 1 : params.state_options.num_cameras;
-    size_t num_unique_cameras = params.camera_sync_groups.size(); // TODO test!!!
+    size_t num_unique_cameras = params.camera_sync_groups.size();
     if (unique_cam_ids.size() == num_unique_cameras) {
 
       // Loop through our queue and see if we are able to process any of our camera measurements
@@ -542,6 +568,8 @@ void ROS1Visualizer::callback_monocular(const sensor_msgs::ImageConstPtr &msg0, 
   ov_core::CameraData message;
   message.timestamp = cv_ptr->header.stamp.toSec();
   message.sensor_ids.push_back(cam_id0);
+  message.timestamps_camera_msgs.push_back(msg0->header.stamp.toSec());
+
   if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
     cv::Mat dst_img;
     cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
@@ -606,7 +634,9 @@ void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, con
   ov_core::CameraData message;
   message.timestamp = cv_ptr0->header.stamp.toSec();
   message.sensor_ids.push_back(cam_id0);
+  message.timestamps_camera_msgs.push_back(msg0->header.stamp.toSec());
   message.sensor_ids.push_back(cam_id1);
+  message.timestamps_camera_msgs.push_back(msg1->header.stamp.toSec());
 
   message.stereo_overlap_groups = _app->get_params().stereo_overlap_groups;
 
@@ -716,13 +746,15 @@ void ROS1Visualizer::callback_multi4( const sensor_msgs::ImageConstPtr &msg0, co
   ov_core::CameraData message;
   message.timestamp = cv_ptr0->header.stamp.toSec();
   message.sensor_ids.push_back(cam_id_vec[0]);
+  message.timestamps_camera_msgs.push_back(msg0->header.stamp.toSec());
   message.sensor_ids.push_back(cam_id_vec[1]);
+  message.timestamps_camera_msgs.push_back(msg1->header.stamp.toSec());
   message.sensor_ids.push_back(cam_id_vec[2]);
+  message.timestamps_camera_msgs.push_back(msg2->header.stamp.toSec());
   message.sensor_ids.push_back(cam_id_vec[3]);
+  message.timestamps_camera_msgs.push_back(msg3->header.stamp.toSec());
 
   message.stereo_overlap_groups = _app->get_params().stereo_overlap_groups;
-
-//  std::copy(_app->get_params().stereo_overlap_groups.begin(), _app->get_params().stereo_overlap_groups.end(), std::back_inserter(message.stereo_overlap_groups));
 
   // Rotation for image 0
   if(_app->get_params().image_stream_rotations.at(cam_id_vec[0]) > 0 && _app->get_params().image_stream_rotations.at(cam_id_vec[0]) < 4) {
@@ -890,7 +922,26 @@ void ROS1Visualizer::publish_state() {
   poses_seq_imu++;
 }
 
-void ROS1Visualizer::publish_images() {
+void ROS1Visualizer::publish_msckf_images() {
+
+  // Check if we have subscribers
+  if (it_pub_msckf_img.getNumSubscribers() == 0)
+    return;
+
+  // Get our image of history tracks
+  cv::Mat img_history = _app->get_active_msckf_viz_image();
+
+  // Create our message
+  std_msgs::Header header;
+  header.stamp = ros::Time::now();
+  header.frame_id = "cam0";
+  sensor_msgs::ImagePtr exl_msg = cv_bridge::CvImage(header, "bgr8", img_history).toImageMsg();
+
+  // Publish
+  it_pub_msckf_img.publish(exl_msg);
+}
+
+void ROS1Visualizer::publish_history_images() {
 
   // Check if we have subscribers
   if (it_pub_tracks.getNumSubscribers() == 0)

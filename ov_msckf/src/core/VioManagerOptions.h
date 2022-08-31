@@ -103,6 +103,12 @@ struct VioManagerOptions {
   /// The path to the file we will record the feature tracking stats into
   std::string record_feature_stats_filepath = "ov_msckf_feature_stats.txt";
 
+  /// Whether to remove features that were used for EKF measurement update
+  bool delete_used_features = true;
+
+  /// Whether to use a new feature selection that values FoV distribution and stereo correspondence
+  bool use_smart_feature_selection = false;
+
   /**
    * @brief This function will load print out all estimator settings loaded.
    * This allows for visual checking that everything was loaded properly from ROS/CMD parsers.
@@ -122,6 +128,10 @@ struct VioManagerOptions {
       parser->parse_config("zupt_only_at_beginning", zupt_only_at_beginning);
       parser->parse_config("record_timing_information", record_timing_information);
       parser->parse_config("record_timing_filepath", record_timing_filepath);
+      parser->parse_config("record_feature_tracking_stats", record_feature_tracking_stats);
+      parser->parse_config("record_feature_stats_filepath", record_feature_stats_filepath);
+      parser->parse_config("delete_used_features", delete_used_features);
+      parser->parse_config("use_smart_feature_selection", use_smart_feature_selection);
     }
     PRINT_DEBUG("  - dt_slam_delay: %.1f\n", dt_slam_delay);
     PRINT_DEBUG("  - zero_velocity_update: %d\n", try_zupt);
@@ -131,6 +141,10 @@ struct VioManagerOptions {
     PRINT_DEBUG("  - zupt_only_at_beginning?: %d\n", zupt_only_at_beginning);
     PRINT_DEBUG("  - record timing?: %s\n", record_timing_information ? "true" : "false");
     PRINT_DEBUG("  - record timing filepath: %s\n", record_timing_filepath.c_str());
+    PRINT_DEBUG("  - record feature tracking stats?: %s\n", record_feature_tracking_stats ? "true" : "false");
+    PRINT_DEBUG("  - record feature stats filepath: %s\n", record_feature_stats_filepath.c_str());
+    PRINT_DEBUG("  - delete used features?: %s\n", delete_used_features ? "true" : "false");
+    PRINT_DEBUG("  - use smart feature selection?: %s\n", use_smart_feature_selection ? "true" : "false");
   }
 
   // NOISE / CHI2 ============================

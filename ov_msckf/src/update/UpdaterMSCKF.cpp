@@ -25,11 +25,11 @@ using namespace ov_core;
 using namespace ov_type;
 using namespace ov_msckf;
 
-void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_ptr<Feature>> &feature_vec) {
+size_t UpdaterMSCKF::update( std::shared_ptr<State> state, std::vector<std::shared_ptr<Feature>> &feature_vec) {
 
   // Return if no features
   if (feature_vec.empty())
-    return;
+    return 0;
 
   // Start timing
   boost::posix_time::ptime rT0, rT1, rT2, rT3, rT4, rT5;
@@ -42,7 +42,7 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
   }
 
   // 1. Clean all feature measurements and make sure they all have valid clone times
-  PRINT_DEBUG(BLUE "[UPDATER-MSCKF] msckf feats initially: %d \n" RESET, feature_vec.size());
+//  PRINT_DEBUG(BLUE "[UPDATER-MSCKF] msckf feats initially: %d \n" RESET, feature_vec.size());
   auto it0 = feature_vec.begin();
   while (it0 != feature_vec.end()) {
 
@@ -63,7 +63,7 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
       it0++;
     }
   }
-  PRINT_DEBUG(BLUE "[UPDATER-MSCKF] msckf feats after measurement cleaning: %d \n" RESET, feature_vec.size());
+//  PRINT_DEBUG(BLUE "[UPDATER-MSCKF] msckf feats after measurement cleaning: %d \n" RESET, feature_vec.size());
   rT1 = boost::posix_time::microsec_clock::local_time();
 
   // 2. Create vector of cloned *CAMERA* poses at each of our clone timesteps
@@ -113,7 +113,7 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
     }
     it1++;
   }
-  PRINT_DEBUG(BLUE "[UPDATER-MSCKF] msckf feats after triangulation: %d \n" RESET, feature_vec.size());
+//  PRINT_DEBUG(BLUE "[UPDATER-MSCKF] msckf feats after triangulation: %d \n" RESET, feature_vec.size());
   rT2 = boost::posix_time::microsec_clock::local_time();
 
   // Calculate the max possible measurement size
@@ -232,13 +232,14 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
 
   // We have appended all features to our Hx_big, res_big
   // Delete it so we do not reuse information
-  for (size_t f = 0; f < feature_vec.size(); f++) {
-    feature_vec[f]->to_delete = true;
-  }
+  // redundant since we set the delete flag in the VioManager routine afterwards anyways
+//  for (size_t f = 0; f < feature_vec.size(); f++) {
+//    feature_vec[f]->to_delete = true;
+//  }
 
   // Return if we don't have anything and resize our matrices
   if (ct_meas < 1) {
-    return;
+    return 0;
   }
   assert(ct_meas <= max_meas_size);
   assert(ct_jacob <= max_hx_size);
@@ -248,7 +249,7 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
   // 5. Perform measurement compression
   UpdaterHelper::measurement_compress_inplace(Hx_big, res_big);
   if (Hx_big.rows() < 1) {
-    return;
+    return 0;
   }
   rT4 = boost::posix_time::microsec_clock::local_time();
 
@@ -266,4 +267,6 @@ void UpdaterMSCKF::update(std::shared_ptr<State> state, std::vector<std::shared_
   PRINT_DEBUG("[MSCKF-UP]: %.4f seconds compress system\n", (rT4 - rT3).total_microseconds() * 1e-6);
   PRINT_DEBUG("[MSCKF-UP]: %.4f seconds update state (%d size)\n", (rT5 - rT4).total_microseconds() * 1e-6, (int)res_big.rows());
   PRINT_DEBUG("[MSCKF-UP]: %.4f seconds total\n", (rT5 - rT1).total_microseconds() * 1e-6);
+
+  return feature_vec.size();
 }

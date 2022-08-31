@@ -6,21 +6,23 @@ use_fej: true # if first-estimate Jacobians should be used (enable for good cons
 use_imuavg: true # if using discrete integration, if we should average sequential IMU measurements to "smooth" it
 use_rk4int: true # if rk4 integration should be used (overrides imu averaging)
 
-use_stereo: true # if we have more than 1 camera, if we should try to track stereo constraints between pairs
+use_stereo: false # if we have more than 1 camera, if we should try to track stereo constraints between pairs
 max_cameras: 2 # how many cameras we have 1 = mono, 2 = stereo, >2 = binocular (all mono tracking)
-#sync_groups: [[0,1,2,3]] # duo-stereo
+#sync_groups: [[0,1],[2,3]] # duo-stereo
 #stereo_overlap: [[0,1],[2,3]] # duo-stereo
-sync_groups: [[0,1]] # stereo
-stereo_overlap: [[0,1]] # stereo
+#sync_groups: [[0,1]] # stereo
+#stereo_overlap: [[0,1]] # stereo
+sync_groups: [[0],[1]] # mono
+stereo_overlap: [[0],[1]] # mono
 
-calib_cam_extrinsics: true # if the transform between camera and IMU should be optimized R_ItoC, p_CinI
+calib_cam_extrinsics: false # if the transform between camera and IMU should be optimized R_ItoC, p_CinI
 calib_cam_intrinsics: true # if camera intrinsics should be optimized (focal, center, distortion)
 calib_cam_timeoffset: true # if timeoffset between camera and IMU should be optimized
 
-max_clones: 5 # how many clones in the sliding window
-max_slam: 50 # number of features in our state vector
+max_clones: 11 # how many clones in the sliding window
+max_slam: 0 # number of features in our state vector # 50
 max_slam_in_update: 25 # update can be split into sequential updates of batches, how many in a batch
-max_msckf_in_update: 40 # how many MSCKF features to use in the update
+max_msckf_in_update: 100 # how many MSCKF features to use in the update # 40
 dt_slam_delay: 1 # delay before initializing (helps with stability from bad initialization...)
 
 gravity_mag: 9.81 # magnitude of gravity in this location
@@ -65,15 +67,21 @@ init_dyn_bias_a: [0.0, 0.0, 0.0]
 # ==================================================================
 # ==================================================================
 
-record_timing_information: true # if we want to record timing information of the method
-record_timing_filepath: "tmp/traj_timing.txt" # https://docs.openvins.com/eval-timing.html#eval-ov-timing-flame
+record_timing_information: false # if we want to record timing information of the method
+record_timing_filepath: "ov_msckf/timing/timing.txt" # https://docs.openvins.com/eval-timing.html#eval-ov-timing-flame
+record_feature_tracking_stats: true
+record_feature_stats_filepath: "ov_msckf/feature_stats/feat_stats.txt"
+
+delete_used_features: false
+use_smart_feature_selection: false
 
 # if we want to save the simulation state and its diagional covariance
 # use this with rosrun ov_eval error_simulation
-save_total_state: false
-filepath_est: "/tmp/ov_estimate.txt"
-filepath_std: "/tmp/ov_estimate_std.txt"
-filepath_gt: "/tmp/ov_groundtruth.txt"
+# NOT USED -> configure in launch file
+#save_total_state: true
+#filepath_est: "ov_msckf/estimation/ov_estimate.txt"
+#filepath_std: "ov_msckf/estimation/ov_estimate_std.txt"
+#filepath_gt: "ov_msckf/estimation/ov_groundtruth.txt"
 
 # ==================================================================
 # ==================================================================
