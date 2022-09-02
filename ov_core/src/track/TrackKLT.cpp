@@ -216,6 +216,9 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
   // Update our feature database, with theses new observations
   for (size_t i = 0; i < good_left.size(); i++) {
     cv::Point2f npt_l = camera_calib.at(cam_id)->undistort_cv(good_left.at(i).pt);
+    std::stringstream ss;
+//    ss << "Feat " << i << " / " << good_left.size() << ": x: " << good_left.at(i).pt.x << ", y: " << good_left.at(i).pt.y << " --> " << "x: " << npt_l.x << ", y: " << npt_l.y << "\n";
+//    PRINT_DEBUG(WHITE "%s" RESET, ss.str().c_str());
     database->update_feature(good_ids_left.at(i), message.timestamp, cam_id, good_left.at(i).pt.x, good_left.at(i).pt.y, npt_l.x, npt_l.y);
   }
 

@@ -290,7 +290,7 @@ void TrackBase::display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, 
 
       // Skip if the feature is null
       if (feat == nullptr) {
-        PRINT_INFO(YELLOW "Feature in nullptr\n" RESET)
+        PRINT_INFO(YELLOW "Feature is nullptr\n" RESET)
         continue;
       } else if (feat->uvs[pair.first].empty()) {
         PRINT_INFO(YELLOW "Feature is empty\n" RESET)

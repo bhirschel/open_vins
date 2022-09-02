@@ -213,7 +213,6 @@ public:
       // trackARUCO->display_active(img_history, 0, 255, 255, 255, 255, 255, overlay);
     }
 
-    trackFEATS->display_msckf_history(img_history, 255, 255, 0, 255, 255, 255, highlighted_ids, overlay);
 
     // Finally return the image
     return img_history;

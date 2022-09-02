@@ -36,6 +36,7 @@
 
 #include "cam/CamEqui.h"
 #include "cam/CamRadtan.h"
+#include "cam/CamOmniRadtan.h"
 #include "feat/FeatureInitializerOptions.h"
 #include "track/TrackBase.h"
 #include "utils/colors.h"
@@ -249,8 +250,8 @@ struct VioManagerOptions {
       parser->parse_config("downsample_cameras", downsample_cameras); // might be redundant
       // Validate stereo overlap
       for (auto &group : stereo_overlap_groups) {
-        if (group.size() != 2) {
-          PRINT_WARNING(YELLOW "Parameter \"stereo_overlap\" malformatted. May only accept pairwise overlap")
+        if (group.size() > 2) {
+          PRINT_WARNING(YELLOW "Parameter \"stereo_overlap\" malformatted. May only accept none or overlap\n" RESET);
         }
       }
       for (int i = 0; i < state_options.num_cameras; i++) {
@@ -261,22 +262,45 @@ struct VioManagerOptions {
           parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "timeshift_cam_imu", calib_camimu_dt, false);
         }
 
+        // Camera model
+        std::string camera_model = "pinhole";
+        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "camera_model", camera_model);
+
         // Distortion model
         std::string dist_model = "radtan";
         parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "distortion_model", dist_model);
 
         // Distortion parameters
-        std::vector<double> cam_calib1 = {1, 1, 0, 0};
-        std::vector<double> cam_calib2 = {0, 0, 0, 0};
-        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "intrinsics", cam_calib1);
-        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "distortion_coeffs", cam_calib2);
-        Eigen::VectorXd cam_calib = Eigen::VectorXd::Zero(8);
-        cam_calib << cam_calib1.at(0), cam_calib1.at(1), cam_calib1.at(2), cam_calib1.at(3), cam_calib2.at(0), cam_calib2.at(1),
-            cam_calib2.at(2), cam_calib2.at(3);
-        cam_calib(0) /= (downsample_cameras) ? 2.0 : 1.0;
-        cam_calib(1) /= (downsample_cameras) ? 2.0 : 1.0;
-        cam_calib(2) /= (downsample_cameras) ? 2.0 : 1.0;
-        cam_calib(3) /= (downsample_cameras) ? 2.0 : 1.0;
+        std::vector<double> cam_calib_intrinsics;
+        if (camera_model == "omni" || camera_model=="omnidir" || camera_model=="omnidirectional") {
+          cam_calib_intrinsics = {1, 1, 1, 0, 0};
+        } else {
+          cam_calib_intrinsics = {1, 1, 0, 0};
+        }
+        std::vector<double> cam_calib_distortion = {0, 0, 0, 0};
+        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "intrinsics", cam_calib_intrinsics);
+        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "distortion_coeffs", cam_calib_distortion);
+        Eigen::VectorXd cam_calib;
+        if (camera_model == "omni" || camera_model=="omnidir" || camera_model=="omnidirectional")
+        {
+          cam_calib = Eigen::VectorXd::Zero( 9 );
+          cam_calib << cam_calib_intrinsics.at( 0 ), cam_calib_intrinsics.at( 1 ), cam_calib_intrinsics.at(2 ),
+            cam_calib_intrinsics.at( 3 ), cam_calib_intrinsics.at(4), cam_calib_distortion.at( 0 ),
+            cam_calib_distortion.at( 1 ), cam_calib_distortion.at( 2 ), cam_calib_distortion.at( 3 );
+          cam_calib( 1 ) /= (downsample_cameras) ? 2.0 : 1.0;
+          cam_calib( 2 ) /= (downsample_cameras) ? 2.0 : 1.0;
+          cam_calib( 3 ) /= (downsample_cameras) ? 2.0 : 1.0;
+          cam_calib( 4 ) /= (downsample_cameras) ? 2.0 : 1.0;
+        } else {
+          cam_calib = Eigen::VectorXd::Zero( 8 );
+          cam_calib << cam_calib_intrinsics.at( 0 ), cam_calib_intrinsics.at( 1 ), cam_calib_intrinsics.at(
+            2 ), cam_calib_intrinsics.at( 3 ), cam_calib_distortion.at( 0 ), cam_calib_distortion.at( 1 ),
+            cam_calib_distortion.at( 2 ), cam_calib_distortion.at( 3 );
+          cam_calib( 0 ) /= (downsample_cameras) ? 2.0 : 1.0;
+          cam_calib( 1 ) /= (downsample_cameras) ? 2.0 : 1.0;
+          cam_calib( 2 ) /= (downsample_cameras) ? 2.0 : 1.0;
+          cam_calib( 3 ) /= (downsample_cameras) ? 2.0 : 1.0;
+        }
 
         // FOV / resolution
         std::vector<int> matrix_wh = {1, 1};
@@ -310,13 +334,19 @@ struct VioManagerOptions {
         // --> state is composed of rotation from IMU to cam and of position of cam in IMU frame
 
         // Create intrinsics model
-        if (dist_model == "equidistant") {
-          camera_intrinsics.insert({i, std::make_shared<ov_core::CamEqui>(matrix_wh.at(0), matrix_wh.at(1))});
-          camera_intrinsics.at(i)->set_value(cam_calib);
-        } else {
-          camera_intrinsics.insert({i, std::make_shared<ov_core::CamRadtan>(matrix_wh.at(0), matrix_wh.at(1))});
+        if (camera_model == "pinhole") {
+          if (dist_model == "equidistant") {
+            camera_intrinsics.insert({i, std::make_shared<ov_core::CamEqui>(matrix_wh.at(0), matrix_wh.at(1))});
+            camera_intrinsics.at(i)->set_value(cam_calib);
+          } else {
+            camera_intrinsics.insert({i, std::make_shared<ov_core::CamRadtan>(matrix_wh.at(0), matrix_wh.at(1))});
+            camera_intrinsics.at(i)->set_value(cam_calib);
+          }
+        } else if (camera_model == "omni" || camera_model == "omnidir" || camera_model == "omnidirectional") {
+          camera_intrinsics.insert({i, std::make_shared<ov_core::CamOmniRadtan>(matrix_wh.at(0), matrix_wh.at(1))});
           camera_intrinsics.at(i)->set_value(cam_calib);
         }
+
         camera_extrinsics.insert({i, cam_eigen});
       }
       parser->parse_config("use_mask", use_mask);

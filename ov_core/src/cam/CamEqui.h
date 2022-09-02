@@ -22,7 +22,7 @@
 #ifndef OV_CORE_CAM_EQUI_H
 #define OV_CORE_CAM_EQUI_H
 
-#include "CamBase.h"
+#include "CamBasePinhole.h"
 
 namespace ov_core {
 
@@ -88,7 +88,7 @@ namespace ov_core {
  *
  * To equate this to one of Kalibr's models, this is what you would use for `pinhole-equi`.
  */
-class CamEqui : public CamBase {
+class CamEqui : public CamBasePinhole {
 
 public:
   /**
@@ -96,7 +96,7 @@ public:
    * @param width Width of the camera (raw pixels)
    * @param height Height of the camera (raw pixels)
    */
-  CamEqui(int width, int height) : CamBase(width, height) {}
+  CamEqui(int width, int height) : CamBasePinhole(width, height) {}
 
   /**
    * @brief Given a raw uv point, this will undistort it based on the camera matrices into normalized camera coords.

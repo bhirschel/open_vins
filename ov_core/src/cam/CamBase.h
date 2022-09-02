@@ -54,43 +54,17 @@ public:
    * This should be called on startup for each camera and after update!
    * @param calib Camera calibration information (f_x & f_y & c_x & c_y & k_1 & k_2 & k_3 & k_4)
    */
-  virtual void set_value(const Eigen::MatrixXd &calib) {
-
-    // Assert we are of size eight
-    assert(calib.rows() == 8);
-    camera_values = calib;
-
-    // Camera matrix
-    cv::Matx33d tempK;
-    tempK(0, 0) = calib(0);
-    tempK(0, 1) = 0;
-    tempK(0, 2) = calib(2);
-    tempK(1, 0) = 0;
-    tempK(1, 1) = calib(1);
-    tempK(1, 2) = calib(3);
-    tempK(2, 0) = 0;
-    tempK(2, 1) = 0;
-    tempK(2, 2) = 1;
-    camera_k_OPENCV = tempK;
-
-    // Distortion parameters
-    cv::Vec4d tempD;
-    tempD(0) = calib(4);
-    tempD(1) = calib(5);
-    tempD(2) = calib(6);
-    tempD(3) = calib(7);
-    camera_d_OPENCV = tempD;
-  }
+  virtual void set_value(const Eigen::MatrixXd &calib) = 0;
 
   /**
-   * @brief Given a raw uv point, this will undistort it based on the camera matrices into normalized camera coords.
+   * @brief Given a raw uv point as Eigen::Vector2f, this will undistort it based on the camera matrices into normalized camera coords.
    * @param uv_dist Raw uv coordinate we wish to undistort
    * @return 2d vector of normalized coordinates
    */
   virtual Eigen::Vector2f undistort_f(const Eigen::Vector2f &uv_dist) = 0;
 
   /**
-   * @brief Given a raw uv point, this will undistort it based on the camera matrices into normalized camera coords.
+   * @brief Given a raw uv point as Eigen::Vector2d, this will undistort it based on the camera matrices into normalized camera coords.
    * @param uv_dist Raw uv coordinate we wish to undistort
    * @return 2d vector of normalized coordinates
    */
@@ -102,7 +76,7 @@ public:
   }
 
   /**
-   * @brief Given a raw uv point, this will undistort it based on the camera matrices into normalized camera coords.
+   * @brief Given a raw uv point as cv::Point2f, this will undistort it based on the camera matrices into normalized camera coords.
    * @param uv_dist Raw uv coordinate we wish to undistort
    * @return 2d vector of normalized coordinates
    */
@@ -117,14 +91,14 @@ public:
   }
 
   /**
-   * @brief Given a normalized uv coordinate this will distort it to the raw image plane
+   * @brief Given a normalized uv coordinate as Eigen::Vector2f this will distort it to the raw image plane
    * @param uv_norm Normalized coordinates we wish to distort
    * @return 2d vector of raw uv coordinate
    */
   virtual Eigen::Vector2f distort_f(const Eigen::Vector2f &uv_norm) = 0;
 
   /**
-   * @brief Given a normalized uv coordinate this will distort it to the raw image plane
+   * @brief Given a normalized uv coordinate as Eigen::Vector2d this will distort it to the raw image plane
    * @param uv_norm Normalized coordinates we wish to distort
    * @return 2d vector of raw uv coordinate
    */
@@ -136,7 +110,7 @@ public:
   }
 
   /**
-   * @brief Given a normalized uv coordinate this will distort it to the raw image plane
+   * @brief Given a normalized uv coordinate as cv::Point2f this will distort it to the raw image plane
    * @param uv_norm Normalized coordinates we wish to distort
    * @return 2d vector of raw uv coordinate
    */

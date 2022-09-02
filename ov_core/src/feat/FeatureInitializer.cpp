@@ -51,6 +51,9 @@ bool FeatureInitializer::single_triangulation(Feature *feat, std::unordered_map<
   // Loop through each camera for this feature
   for (auto const &pair : feat->timestamps) {
 
+    std::stringstream ss;
+    ss << "Feat " << feat->featid << " in cam " << pair.first << ": ";
+
     // Add CAM_I features
     for (size_t m = 0; m < feat->timestamps.at(pair.first).size(); m++) {
 
@@ -69,6 +72,7 @@ bool FeatureInitializer::single_triangulation(Feature *feat, std::unordered_map<
       b_i << feat->uvs_norm.at(pair.first).at(m)(0), feat->uvs_norm.at(pair.first).at(m)(1), 1;
       b_i = R_AtoCi.transpose() * b_i;
       b_i = b_i / b_i.norm();
+      ss << "x_" << m << ": " << b_i[0] << ", y_" << m << ": " << b_i[1] <<", z_" << m << ": " << b_i[2] << ", p_C->A: " << p_CiinA(0) << " - " << p_CiinA(1) << " - " << p_CiinA(2)  << "; ";
       Eigen::Matrix3d Bperp = skew_x(b_i);
 
       // Append to our linear system
@@ -76,10 +80,20 @@ bool FeatureInitializer::single_triangulation(Feature *feat, std::unordered_map<
       A += Ai;
       b += Ai * p_CiinA;
     }
+    PRINT_DEBUG(WHITE "%s\n" RESET, ss.str().c_str());
   }
 
   // Solve the linear system
   Eigen::MatrixXd p_f = A.colPivHouseholderQr().solve(b);
+  std::stringstream spf;
+  spf << "p_f x: " << p_f(0) << ", y: " << p_f(1) << ", z: " << p_f(2);
+  PRINT_DEBUG(WHITE "%s\n" RESET, spf.str().c_str());
+
+  // Alternative manual calculation -> identical
+//  Eigen::MatrixXd p_f_alt = A.inverse() * b;
+//  std::stringstream spf_alt;
+//  spf_alt << "p_f_alt x: " << p_f_alt(0) << ", y: " << p_f_alt(1) << ", z: " << p_f_alt(2);
+//  PRINT_DEBUG(WHITE "%s\n" RESET, spf_alt.str().c_str());
 
   // Check A and p_f
   Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -102,13 +116,14 @@ bool FeatureInitializer::single_triangulation(Feature *feat, std::unordered_map<
     << ") || p_f(2, 0) < _options.min_dist (" << p_f(2, 0) << " < " << _options.min_dist
     << ") || p_f(2, 0) > _options.max_dist (" << p_f(2, 0) << " > " << _options.max_dist
     << ") || std::isnan(p_f.norm()) (" << std::isnan(p_f.norm()) << ")" << std::endl;
-//    PRINT_DEBUG(WHITE "Triangulation failed: %s" RESET, ss.str().c_str());
+    PRINT_DEBUG(RED "Triangulation failed: %s" RESET, ss.str().c_str());
     return false;
   }
 
   // Store it in our feature object
   feat->p_FinA = p_f;
   feat->p_FinG = R_GtoA.transpose() * feat->p_FinA + p_AinG;
+  PRINT_DEBUG(GREEN "Triangulation Passed\n" RESET);
   return true;
 }
 
