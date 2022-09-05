@@ -14,3 +14,4 @@ imu0:
   rostopic: /imu/data
   time_offset: 0.0
   update_rate: 100.0
+  # bg = -0.0064,-0.0072,-0.0005 | ba = -0.0175,0.0152,0.0083
