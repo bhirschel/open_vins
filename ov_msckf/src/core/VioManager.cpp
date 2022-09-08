@@ -601,13 +601,34 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
     // Thus we should be able to visualize the other unique camera stream
     // MSCKF features as they will also be appended to the vector
     good_features_MSCKF.clear();
-    good_features_MSCKF_ids.clear();
+//    good_features_MSCKF_ids.clear();
+  }
+
+  // Delete old features from the good MSCKF feature IDs vector that are from the same cameras as the current message
+  auto it_msckf_feat_copy = good_features_MSCKF_feat_copy.begin();
+  while (it_msckf_feat_copy != good_features_MSCKF_feat_copy.end()) {
+    bool found_feat = false;
+    for (auto &cams : (*it_msckf_feat_copy)->timestamps) {
+      if (std::find(message.sensor_ids.begin(), message.sensor_ids.end(), cams.first) != message.sensor_ids.end()) {
+        found_feat = true;
+        break;
+      }
+    }
+
+    if (found_feat) {
+      it_msckf_feat_copy = good_features_MSCKF_feat_copy.erase(it_msckf_feat_copy);
+    } else {
+      it_msckf_feat_copy++;
+    }
   }
 
   // Save all the MSCKF features used in the update
   for (auto const &feat : featsup_MSCKF) {
     good_features_MSCKF.push_back(feat->p_FinG);
-    good_features_MSCKF_ids.push_back(feat->featid);
+    std::shared_ptr<Feature> temp = std::make_shared<Feature>();
+    temp->timestamps = feat->timestamps;
+    temp->uvs = feat->uvs;
+    good_features_MSCKF_feat_copy.push_back(temp);
 
     if (params.delete_used_features)
       feat->to_delete = true;

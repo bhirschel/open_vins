@@ -34,7 +34,7 @@ feat_rep_aruco: "ANCHORED_MSCKF_INVERSE_DEPTH"
 # zero velocity update parameters we can use
 # we support either IMU-based or disparity detection.
 try_zupt: true
-zupt_chi2_multipler: 2 # set to 0 for only disp-based
+zupt_chi2_multipler: 1 # set to 0 for only disp-based
 zupt_max_velocity: 0.1
 zupt_noise_multiplier: 10
 zupt_max_disparity: 0 # set to 0 for only imu-based -> HAS TO BE 0 FOR MONO
@@ -69,7 +69,7 @@ init_dyn_bias_a: [0.0, 0.0, 0.0]
 
 record_timing_information: false # if we want to record timing information of the method
 record_timing_filepath: "ov_msckf/timing/timing.txt" # https://docs.openvins.com/eval-timing.html#eval-ov-timing-flame
-record_feature_tracking_stats: true
+record_feature_tracking_stats: false
 record_feature_stats_filepath: "ov_msckf/feature_stats/feat_stats.txt"
 
 delete_used_features: true
@@ -97,7 +97,7 @@ min_px_dist: 15
 knn_ratio: 0.70
 track_frequency: 21.0
 downsample_cameras: false # will downsample image in half if true
-multi_threading: false # if should enable opencv multi threading
+multi_threading: true # if should enable opencv multi threading
 histogram_method: "HISTOGRAM" # NONE, HISTOGRAM, CLAHE
 
 # aruco tag tracker for the system
