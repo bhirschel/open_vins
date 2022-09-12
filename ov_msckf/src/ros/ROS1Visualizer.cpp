@@ -158,6 +158,7 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
   _nh->param<std::string>("topic_imu", topic_imu, "/imu0");
   parser->parse_external("relative_config_imu", "imu0", "rostopic", topic_imu);
   sub_imu = _nh->subscribe(topic_imu, 1000, &ROS1Visualizer::callback_inertial, this);
+  timer_processing_ = _nh->createTimer(ros::Duration(0.1), &ROS1Visualizer::callback_timer_processing, this);
 
   if (_app->get_params().camera_sync_groups.empty()) {
     // If not specified, add all callbacks independently
@@ -498,31 +499,37 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
   _app->feed_measurement_imu(message);
   visualize_odometry(message.timestamp);
 
+  imu_last_timestamp = message.timestamp;
+}
+
+void ROS1Visualizer::callback_timer_processing(const ros::TimerEvent& timerEvent) {
   // If the processing queue is currently active / running just return so we can keep getting measurements
   // Otherwise create a second thread to do our update in an async manor
   // The visualization of the state, images, and features will be synchronous with the update!
   if (thread_update_running)
     return;
+
   thread_update_running = true;
+
   std::thread thread([&] {
     // Lock on the queue (prevents new images from appending)
     std::lock_guard<std::mutex> lck(camera_queue_mtx);
 
     // Count how many unique image streams
-    std::map<int, bool> unique_cam_ids;
-    for (const auto &cam_msg : camera_queue) {
-      unique_cam_ids[cam_msg.sensor_ids.at(0)] = true;
-    }
+//    std::map<int, bool> unique_cam_ids;
+//    for (const auto &cam_msg : camera_queue) {
+//      unique_cam_ids[cam_msg.sensor_ids.at(0)] = true;
+//    }
 
     // If we do not have enough unique cameras then we need to wait
     // We should wait till we have one of each camera to ensure we propagate in the correct order
     auto params = _app->get_params();
-    size_t num_unique_cameras = params.camera_sync_groups.size();
-    if (unique_cam_ids.size() == num_unique_cameras) {
-
+//    size_t num_unique_cameras = params.camera_sync_groups.size();
+//    if (unique_cam_ids.size() == num_unique_cameras) {
+    if (!camera_queue.empty()) {
       // Loop through our queue and see if we are able to process any of our camera measurements
       // We are able to process if we have at least one IMU measurement greater than the camera time
-      double timestamp_imu_inC = message.timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
+      double timestamp_imu_inC = imu_last_timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
       while (!camera_queue.empty() && camera_queue.at(0).timestamp < timestamp_imu_inC) {
         auto rT0_1 = boost::posix_time::microsec_clock::local_time();
         _app->feed_measurement_camera(camera_queue.at(0));

@@ -50,6 +50,7 @@
 #include "utils/dataset_reader.h"
 #include "utils/print.h"
 #include "utils/sensor_data.h"
+#include "state/Propagator.h"
 
 namespace ov_msckf {
 
@@ -127,6 +128,8 @@ public:
                         const sensor_msgs::ImageConstPtr &msg4, const sensor_msgs::ImageConstPtr &msg5,
                         std::vector<int> &cam_id_vec);
 
+  void callback_timer_processing(const ros::TimerEvent& timerEvent);
+
 protected:
   /// Publish the current state
   void publish_state();
@@ -164,6 +167,7 @@ protected:
 
   // Our subscribers and camera synchronizers
   ros::Subscriber sub_imu;
+  ros::Timer timer_processing_;
   std::vector<ros::Subscriber> subs_cam;
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol2;
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image> sync_pol3;
@@ -202,6 +206,9 @@ protected:
   /// a nice feature to have for general robustness to bad camera drivers.
   std::deque<ov_core::CameraData> camera_queue;
   std::mutex camera_queue_mtx;
+
+  // last imu message timestamp we have received
+  double imu_last_timestamp;
 
   // Last camera message timestamps we have received (mapped by cam id)
   std::map<int, double> camera_last_timestamp;
