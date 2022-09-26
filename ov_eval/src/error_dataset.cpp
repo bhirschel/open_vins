@@ -40,8 +40,10 @@
 
 int main(int argc, char **argv) {
 
+//  sleep(10);
+
   // Verbosity setting
-  ov_core::Printer::setPrintLevel("INFO");
+  ov_core::Printer::setPrintLevel("DEBUG");
 
   // Ensure we have a path
   if (argc < 4) {

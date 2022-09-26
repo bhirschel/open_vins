@@ -87,7 +87,7 @@ void plot_z_positions(const std::string &name, const std::string &color, const s
 int main(int argc, char **argv) {
 
   // Verbosity setting
-  ov_core::Printer::setPrintLevel("INFO");
+  ov_core::Printer::setPrintLevel("DEBUG");
 
   // Ensure we have a path
   if (argc < 3) {
