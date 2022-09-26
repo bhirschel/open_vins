@@ -16,7 +16,7 @@
 
     <!-- saving trajectory path and timing information -->
     <arg name="save_total_state"          default="false" />
-    <arg name="save_estimation"           default="true" />
+    <arg name="save_estimation"           default="false" />
     <arg name="dotime"                    default="false" />
     <arg name="filepath_est_error_sim"    default="ov_msckf/error_sim/ov_estimate_error_sim.txt" />
     <arg name="filepath_std_error_sim"    default="ov_msckf/error_sim/ov_estimate_std_error_sim.txt" />

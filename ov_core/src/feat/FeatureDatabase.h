@@ -269,7 +269,7 @@ public:
    */
   void cleanup() {
     // Loop through all features
-    // int sizebefore = (int)features_idlookup.size();
+    int sizebefore = (int)features_idlookup.size();
     std::lock_guard<std::mutex> lck(mtx);
     for (auto it = features_idlookup.begin(); it != features_idlookup.end();) {
       // If delete flag is set, then delete it
@@ -279,7 +279,7 @@ public:
         it++;
       }
     }
-    // PRINT_DEBUG("feat db = %d -> %d\n", sizebefore, (int)features_idlookup.size() << std::endl;
+    PRINT_DEBUG("feat db = %d -> %d\n", sizebefore, (int)features_idlookup.size());
   }
 
   /**

@@ -133,7 +133,7 @@ public:
    * @param highlighted unique ids which we wish to highlight (e.g. slam feats)
    * @param overlay Text overlay to replace to normal "cam0" in the top left of screen
    */
-  virtual void display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, int r2, int g2, int b2, const std::vector<size_t>& good_features_MSCKF,
+  virtual void display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, int r2, int g2, int b2, const std::vector<std::shared_ptr<Feature>>& good_features_MSCKF_feat_copy,
                                std::string overlay = "");
 
   /**

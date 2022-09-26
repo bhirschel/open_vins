@@ -217,7 +217,7 @@ void TrackBase::display_history(cv::Mat &img_out, int r1, int g1, int b1, int r2
   }
 }
 
-void TrackBase::display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, int r2, int g2, int b2, const std::vector<size_t>& good_features_MSCKF,
+void TrackBase::display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, int r2, int g2, int b2, const std::vector<std::shared_ptr<Feature>>& good_features_MSCKF_feat_copy,
                                       std::string overlay) {
   // Cache the images to prevent other threads from editing while we viz (which can be slow)
   std::map<size_t, cv::Mat> img_last_cache, img_mask_last_cache;
@@ -257,9 +257,6 @@ void TrackBase::display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, 
   if (image_new)
     img_out = cv::Mat(max_height, (int)img_last_cache.size() * max_width, CV_8UC3, cv::Scalar(0, 0, 0));
 
-  // Max tracks to show (otherwise it clutters up the screen)
-//  size_t maxtracks = 50;
-
   // Loop through each image, and draw
   int index_cam = 0;
   for (auto const &pair : img_last_cache) {
@@ -273,43 +270,32 @@ void TrackBase::display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, 
       img_temp = img_out(cv::Rect(max_width * index_cam, 0, max_width, max_height));
 
     // draw, loop through all keypoints
-    for (size_t i = 0; i < ids_last[pair.first].size(); i++) {
-      // If a highlighted point, then put a nice box around it
-      if (std::find(good_features_MSCKF.begin(), good_features_MSCKF.end(), ids_last[pair.first].at(i)) != good_features_MSCKF.end()) {
-        cv::Point2f pt_c = pts_last[pair.first].at(i).pt;
-        cv::Point2f pt_l_top = cv::Point2f(pt_c.x - ((is_small) ? 3 : 5), pt_c.y - ((is_small) ? 3 : 5));
-        cv::Point2f pt_l_bot = cv::Point2f(pt_c.x + ((is_small) ? 3 : 5), pt_c.y + ((is_small) ? 3 : 5));
-        cv::rectangle(img_temp, pt_l_top, pt_l_bot, cv::Scalar(62, 175, 252), 1);
-        cv::circle(img_temp, pt_c, (is_small) ? 1 : 2, cv::Scalar(62, 175, 252), cv::FILLED);
-      } else {
-        continue;
-      }
-
-      // Get the feature from the database
-      std::shared_ptr<Feature> feat = database->get_feature(ids_last[pair.first].at(i));
-
+    for (auto &feat : good_features_MSCKF_feat_copy) {
       // Skip if the feature is null
       if (feat == nullptr) {
-        PRINT_INFO(YELLOW "Feature is nullptr\n" RESET)
+//        PRINT_INFO(YELLOW "Feature is nullptr\n" RESET)
         continue;
       } else if (feat->uvs[pair.first].empty()) {
-        PRINT_INFO(YELLOW "Feature is empty\n" RESET)
+//        PRINT_INFO(YELLOW "Feature is empty\n" RESET)
         continue;
       } else if (feat->to_delete) {
-        PRINT_INFO(YELLOW "Feature has to delete flag\n" RESET)
+//        PRINT_INFO(YELLOW "Feature has to delete flag\n" RESET)
         continue;
       }
 
-//      PRINT_INFO(YELLOW "Length of MSCKF feature for camera %u: %u\n" RESET, pair.first, feat->uvs[pair.first].size());
+      // Put a box around the feature position
+      cv::Point2f pt_c = {feat->uvs[pair.first].back().x(), feat->uvs[pair.first].back().y()};
+      cv::Point2f pt_l_top = cv::Point2f(pt_c.x - ((is_small) ? 3 : 5), pt_c.y - ((is_small) ? 3 : 5));
+      cv::Point2f pt_l_bot = cv::Point2f(pt_c.x + ((is_small) ? 3 : 5), pt_c.y + ((is_small) ? 3 : 5));
+      cv::rectangle(img_temp, pt_l_top, pt_l_bot, cv::Scalar(62, 175, 252), 1);
+      cv::circle(img_temp, pt_c, (is_small) ? 1 : 2, cv::Scalar(62, 175, 252), cv::FILLED);
+
+      bool is_stereo = (feat->uvs.size() > 1); // feature has been seen from more than one camera
 
       // Draw the history of this point (start at the last inserted one)
       for (size_t z = feat->uvs[pair.first].size() - 1; z > 0; z--) {
-        // Check if we have reached the max
-//        if (feat->uvs[pair.first].size() - z > maxtracks)
-//          break;
 
         // Calculate what color we are drawing in
-        bool is_stereo = (feat->uvs.size() > 1); // feature has been seen from more than one camera
         int color_r = (is_stereo ? b2 : r2) - (int)((is_stereo ? b1 : r1) / feat->uvs[pair.first].size() * z);
         int color_g = (is_stereo ? r2 : g2) - (int)((is_stereo ? r1 : g1) / feat->uvs[pair.first].size() * z);
         int color_b = (is_stereo ? g2 : b2) - (int)((is_stereo ? g1 : b1) / feat->uvs[pair.first].size() * z);

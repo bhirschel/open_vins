@@ -41,6 +41,7 @@
 #include "utils/opencv_lambda_body.h"
 #include "utils/print.h"
 #include "utils/sensor_data.h"
+#include "feat/Feature.h"
 
 #include "init/InertialInitializer.h"
 
@@ -172,13 +173,6 @@ public:
 
   /// Get a nice visualization image of what tracks we have
   cv::Mat get_active_msckf_viz_image() {
-
-    // Build an id-list of what features we should highlight (i.e. SLAM)
-//    std::vector<size_t> highlighted_ids;
-//    for (const auto &feat : state->_features_SLAM) {
-//      highlighted_ids.push_back(feat.first);
-//    }
-
     // Text we will overlay if needed
     std::string overlay = (did_zupt_update) ? "zvupt" : "";
     overlay = (!is_initialized_vio) ? "init" : overlay;
@@ -186,7 +180,7 @@ public:
     // Get the current active tracks
     cv::Mat img_history;
 
-    trackFEATS->display_msckf_history(img_history, 255, 255, 0, 255, 255, 255, good_features_MSCKF_ids, overlay);
+    trackFEATS->display_msckf_history(img_history, 255, 255, 0, 255, 255, 255, good_features_MSCKF_feat_copy, overlay);
 
     // Finally return the image
     return img_history;
@@ -381,7 +375,7 @@ protected:
 
   // Good features that where used in the last update (used in visualization)
   std::vector<Eigen::Vector3d> good_features_MSCKF;
-  std::vector<size_t> good_features_MSCKF_ids;
+  std::vector<std::shared_ptr<ov_core::Feature>> good_features_MSCKF_feat_copy;
 
   /// Feature initializer used to triangulate all active tracks
   std::shared_ptr<ov_core::FeatureInitializer> active_tracks_initializer;
