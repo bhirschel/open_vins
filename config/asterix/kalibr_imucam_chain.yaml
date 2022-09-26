@@ -40,32 +40,32 @@ cam1: # Front RGBD cam infra2 = right view (because camera is mounted upside dow
   resolution: [640, 480]
   rotation: 2
   rostopic: /front_rgbd_cam/infra1/image_rect_raw
-#cam2: # Back RGBD cam infra2 = left view (because camera is mounted upside down)
-#  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
-#    - [0.0,           0.5,        -0.866,     -0.108] # by hand
-#    - [1.0,           0.0,        0.0,        -0.127]
-#    - [0.0,           -0.866,     -0.5,       0.348]
-#    - [0.0,           0.0,        0.0,        1.0]
-#  camera_model: pinhole
-#  distortion_coeffs: [0.024038829337909587,0.020987576908502052,-0.004443037842424018,0.0034647570089133004]
-#  distortion_model: radtan
-#  intrinsics: [398.279, 404.623, 321.272, 227.609] #fu, fv, cu, cv
-#  resolution: [640, 480]
-#  rotation: 2
-#  rostopic: /back_rgbd_cam/infra2/image_rect_raw
-#cam3: # Back RGBD cam infra1 = right view (because camera is mounted upside down)
-#  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
-#    - [0.0,           0.5,        -0.866,     -0.108] # by hand
-#    - [1.0,           0.0,        0.0,        -0.033]
-#    - [0.0,           -0.866,     -0.5,       0.348]
-#    - [0.0,           0.0,        0.0,        1.0]
-#  camera_model: pinhole
-#  distortion_coeffs: [0.027935376100044797, 0.03511131773175079, -0.00788041398845487, 0.006677041791795516]
-#  distortion_model: radtan
-#  intrinsics: [394.698, 403.062, 325.154, 224.993] #fu, fv, cu, cv
-#  resolution: [640, 480]
-#  rotation: 2
-#  rostopic: /back_rgbd_cam/infra1/image_rect_raw
+cam2: # Back RGBD cam infra2 = left view (because camera is mounted upside down)
+  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
+    - [0.0,           0.5,        -0.866,     -0.108] # by hand
+    - [1.0,           0.0,        0.0,        -0.127]
+    - [0.0,           -0.866,     -0.5,       0.348]
+    - [0.0,           0.0,        0.0,        1.0]
+  camera_model: pinhole
+  distortion_coeffs: [0.024038829337909587,0.020987576908502052,-0.004443037842424018,0.0034647570089133004]
+  distortion_model: radtan
+  intrinsics: [398.279, 404.623, 321.272, 227.609] #fu, fv, cu, cv
+  resolution: [640, 480]
+  rotation: 2
+  rostopic: /back_rgbd_cam/infra2/image_rect_raw
+cam3: # Back RGBD cam infra1 = right view (because camera is mounted upside down)
+  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
+    - [0.0,           0.5,        -0.866,     -0.108] # by hand
+    - [1.0,           0.0,        0.0,        -0.033]
+    - [0.0,           -0.866,     -0.5,       0.348]
+    - [0.0,           0.0,        0.0,        1.0]
+  camera_model: pinhole
+  distortion_coeffs: [0.027935376100044797, 0.03511131773175079, -0.00788041398845487, 0.006677041791795516]
+  distortion_model: radtan
+  intrinsics: [394.698, 403.062, 325.154, 224.993] #fu, fv, cu, cv
+  resolution: [640, 480]
+  rotation: 2
+  rostopic: /back_rgbd_cam/infra1/image_rect_raw
 #cam0: # left fisheye
 #  T_imu_cam: #rotation from camera to IMU R_CtoI, position of camera in IMU p_CinI
 ##      - [0.9999920,       -0.0036065,     0.0017332,      -0.005] # values from tf
