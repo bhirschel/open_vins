@@ -42,6 +42,7 @@
 #include <tf/transform_broadcaster.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/range/adaptor/reversed.hpp>
 #include <cv_bridge/cv_bridge.h>
 
 #include "core/VioManager.h"
@@ -208,7 +209,8 @@ protected:
   std::mutex camera_queue_mtx;
 
   // last imu message timestamp we have received
-  double imu_last_timestamp;
+  std::atomic<double> imu_last_timestamp;
+  const double imu_rate = 1.0 / 100.0;
 
   // Last camera message timestamps we have received (mapped by cam id)
   std::map<int, double> camera_last_timestamp;

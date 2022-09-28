@@ -528,17 +528,79 @@ void ROS1Visualizer::callback_timer_processing(const ros::TimerEvent& timerEvent
 //    if (unique_cam_ids.size() == num_unique_cameras) {
     if (!camera_queue.empty()) {
       // Loop through our queue and see if we are able to process any of our camera measurements
-      // We are able to process if we have at least one IMU measurement greater than the camera time
-      double timestamp_imu_inC = imu_last_timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
-      while (!camera_queue.empty() && camera_queue.at(0).timestamp < timestamp_imu_inC) {
+
+      // Find groups of camera messages that are within a predefined threshold, starting with the newest message (last
+      // in queue) backwards to the oldest. The common timestamp is defined by the newest message in the group
+      std::vector<std::pair<double, std::vector<size_t>>> cam_msg_groups;
+      for (size_t k = camera_queue.size(); k --> 0 ; ) {
+        std::vector<size_t> cam_msg_group = {k};
+
+        if (k >= 0) {
+          // smaller than k because it is an unsigned long and will wrap around to MAX_INT at last decrement
+          for (size_t k_next = k; k_next --> 0; ) {
+            if (camera_queue[k_next].timestamp <= camera_queue[k].timestamp && camera_queue[k_next].timestamp >= camera_queue[k].timestamp - 0.026) {
+              cam_msg_group.push_back(k_next);
+            }
+          }
+        }
+        k = cam_msg_group.back();
+        cam_msg_groups.emplace_back(camera_queue[k].timestamp, cam_msg_group);
+      }
+
+      PRINT_INFO(YELLOW "Found %zu message groups\n" RESET, cam_msg_groups.size());
+
+      for (auto & cam_msg_group : boost::adaptors::reverse(cam_msg_groups)) {
         auto rT0_1 = boost::posix_time::microsec_clock::local_time();
-        _app->feed_measurement_camera(camera_queue.at(0));
+
+        std::stringstream ss;
+        for ( auto &index: cam_msg_group.second ) {
+          ss << index << ", ";
+        }
+        PRINT_INFO(YELLOW "Processing %zu messages together: %s\n" RESET, cam_msg_group.second.size(), ss.str().c_str());
+
+        // We are able to process if we have at least one IMU measurement greater than the camera time
+        double timestamp_imu_inC = imu_last_timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
+        if ( cam_msg_group.first > timestamp_imu_inC ) {
+          PRINT_INFO(YELLOW "Sleeping one imu clock to wait for new measurement" RESET);
+          std::this_thread::sleep_for( std::chrono::milliseconds((int64_t) (imu_rate * 1000)));
+
+          // read in atomic imu_last_timestamp again
+          timestamp_imu_inC = imu_last_timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
+          if ( cam_msg_group.first > timestamp_imu_inC ) {
+            // Something went wrong, break
+            return;
+          }
+        }
+
+        ov_core::CameraData new_measurement;
+        new_measurement.timestamp = cam_msg_group.first;
+        for ( auto &index: cam_msg_group.second ) {
+          new_measurement.timestamps_camera_msgs.insert( new_measurement.timestamps_camera_msgs.end(),
+                                                         camera_queue[index].timestamps_camera_msgs.begin(),
+                                                         camera_queue[index].timestamps_camera_msgs.end());
+          new_measurement.sensor_ids.insert( new_measurement.sensor_ids.end(),
+                                             camera_queue[index].sensor_ids.begin(),
+                                             camera_queue[index].sensor_ids.end());
+          new_measurement.stereo_overlap_groups.insert( new_measurement.stereo_overlap_groups.end(),
+                                                        camera_queue[index].stereo_overlap_groups.begin(),
+                                                        camera_queue[index].stereo_overlap_groups.end());
+          new_measurement.images.insert( new_measurement.images.end(),
+                                         camera_queue[index].images.begin(),
+                                         camera_queue[index].images.end());
+          new_measurement.masks.insert( new_measurement.masks.end(),
+                                        camera_queue[index].masks.begin(),
+                                        camera_queue[index].masks.end());
+        }
+
+        _app->feed_measurement_camera(new_measurement);
         visualize();
-        camera_queue.pop_front();
+
         auto rT0_2 = boost::posix_time::microsec_clock::local_time();
         double time_total = (rT0_2 - rT0_1).total_microseconds() * 1e-6;
         PRINT_INFO(BLUE "[TIME]: %.4f seconds total (%.1f hz)\n" RESET, time_total, 1.0 / time_total);
       }
+
+      camera_queue.clear();
     }
     thread_update_running = false;
   });
