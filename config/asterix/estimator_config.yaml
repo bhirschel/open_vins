@@ -17,7 +17,7 @@ stereo_overlap: [[0,1],[2,3]] # duo-stereo
 
 calib_cam_extrinsics: false # if the transform between camera and IMU should be optimized R_ItoC, p_CinI
 calib_cam_intrinsics: true # if camera intrinsics should be optimized (focal, center, distortion)
-calib_cam_timeoffset: true # if timeoffset between camera and IMU should be optimized
+calib_cam_timeoffset: false # if timeoffset between camera and IMU should be optimized
 
 max_clones: 11 # how many clones in the sliding window
 max_slam: 0 # number of features in our state vector # 50
@@ -35,9 +35,9 @@ feat_rep_aruco: "ANCHORED_MSCKF_INVERSE_DEPTH"
 # we support either IMU-based or disparity detection.
 try_zupt: true
 zupt_chi2_multipler: 1 # set to 0 for only disp-based
-zupt_max_velocity: 0.1
+zupt_max_velocity: 0.05
 zupt_noise_multiplier: 10
-zupt_max_disparity: 0 # set to 0 for only imu-based -> HAS TO BE 0 FOR MONO
+zupt_max_disparity: 1 # set to 0 for only imu-based -> HAS TO BE 0 FOR MONO
 zupt_only_at_beginning: true
 
 # ==================================================================
