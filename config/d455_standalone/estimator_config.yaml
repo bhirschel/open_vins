@@ -106,7 +106,11 @@ up_aruco_sigma_px: 1
 up_aruco_chi2_multipler: 1
 
 # masks for our images
-use_mask: false
+use_mask: true
+mask0: "front_infra2_mask.png"
+mask1: "front_infra1_mask.png"
+mask2: "back_infra2_mask.png"
+mask3: "back_infra1_mask.png"
 
 # imu and camera spacial-temporal
 # imu config should also have the correct noise values
