@@ -99,6 +99,10 @@ public:
    */
   void visualize_final();
 
+//  void callback_timer_processing(const ros::TimerEvent& timerEvent);
+
+  void image_processing();
+
   /// Callback for inertial information
   void callback_inertial(const sensor_msgs::Imu::ConstPtr &msg);
 
@@ -128,8 +132,6 @@ public:
                         const sensor_msgs::ImageConstPtr &msg2, const sensor_msgs::ImageConstPtr &msg3,
                         const sensor_msgs::ImageConstPtr &msg4, const sensor_msgs::ImageConstPtr &msg5,
                         std::vector<int> &cam_id_vec);
-
-  void callback_timer_processing(const ros::TimerEvent& timerEvent);
 
 protected:
   /// Publish the current state

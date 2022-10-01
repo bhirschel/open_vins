@@ -158,7 +158,7 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
   _nh->param<std::string>("topic_imu", topic_imu, "/imu0");
   parser->parse_external("relative_config_imu", "imu0", "rostopic", topic_imu);
   sub_imu = _nh->subscribe(topic_imu, 1000, &ROS1Visualizer::callback_inertial, this);
-  timer_processing_ = _nh->createTimer(ros::Duration(0.1), &ROS1Visualizer::callback_timer_processing, this);
+//  timer_processing_ = _nh->createTimer(ros::Duration(0.1), &ROS1Visualizer::callback_timer_processing, this);
 
   if (_app->get_params().camera_sync_groups.empty()) {
     // If not specified, add all callbacks independently
@@ -502,79 +502,269 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
   imu_last_timestamp = message.timestamp;
 }
 
-void ROS1Visualizer::callback_timer_processing(const ros::TimerEvent& timerEvent) {
+//void ROS1Visualizer::callback_timer_processing(const ros::TimerEvent& timerEvent) {
+//  // If the processing queue is currently active / running just return so we can keep getting measurements
+//  // Otherwise create a second thread to do our update in an async manor
+//  // The visualization of the state, images, and features will be synchronous with the update!
+//  if (thread_update_running)
+//    return;
+//
+//  thread_update_running = true;
+//
+//  std::thread thread([&] {
+//    // Lock on the queue (prevents new images from appending)
+//    std::lock_guard<std::mutex> lck(camera_queue_mtx);
+//
+//    // Count how many unique image streams
+////    std::map<int, bool> unique_cam_ids;
+////    for (const auto &cam_msg : camera_queue) {
+////      unique_cam_ids[cam_msg.sensor_ids.at(0)] = true;
+////    }
+//
+//    // If we do not have enough unique cameras then we need to wait
+//    // We should wait till we have one of each camera to ensure we propagate in the correct order
+//    auto params = _app->get_params();
+////    size_t num_unique_cameras = params.camera_sync_groups.size();
+////    if (unique_cam_ids.size() == num_unique_cameras) {
+//    if (!camera_queue.empty()) {
+//      // Loop through our queue and see if we are able to process any of our camera measurements
+//
+//      // Find groups of camera messages that are within a predefined threshold, starting with the newest message (last
+//      // in queue) backwards to the oldest. The common timestamp is defined by the newest message in the group
+//      std::vector<std::pair<double, std::vector<size_t>>> cam_msg_groups;
+//      for (size_t k = camera_queue.size(); k --> 0 ; ) {
+//        std::vector<size_t> cam_msg_group = {k};
+//
+//        if (k >= 0) {
+//          // smaller than k because it is an unsigned long and will wrap around to MAX_INT at last decrement
+//          for (size_t k_next = k; k_next --> 0; ) {
+//            if (camera_queue[k_next].timestamp <= camera_queue[k].timestamp && camera_queue[k_next].timestamp >= camera_queue[k].timestamp - 0.026) {
+//              cam_msg_group.push_back(k_next);
+//            }
+//          }
+//        }
+//        k = cam_msg_group.back();
+//        cam_msg_groups.emplace_back(camera_queue[k].timestamp, cam_msg_group);
+//      }
+//
+//      PRINT_INFO(YELLOW "Found %zu message groups\n" RESET, cam_msg_groups.size());
+//
+//      for (auto & cam_msg_group : boost::adaptors::reverse(cam_msg_groups)) {
+//        auto rT0_1 = boost::posix_time::microsec_clock::local_time();
+//
+//        std::stringstream ss;
+//        for ( auto &index: cam_msg_group.second ) {
+//          ss << index << ", ";
+//        }
+//        PRINT_INFO(YELLOW "Processing %zu messages together: %s\n" RESET, cam_msg_group.second.size(), ss.str().c_str());
+//
+//        // We are able to process if we have at least one IMU measurement greater than the camera time
+//        double timestamp_imu_inC = imu_last_timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
+//        if ( cam_msg_group.first > timestamp_imu_inC ) {
+//          PRINT_INFO(YELLOW "Sleeping one imu clock to wait for new measurement" RESET);
+//          std::this_thread::sleep_for( std::chrono::milliseconds((int64_t) (imu_rate * 1000)));
+//
+//          // read in atomic imu_last_timestamp again
+//          timestamp_imu_inC = imu_last_timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
+//          if ( cam_msg_group.first > timestamp_imu_inC ) {
+//            // Something went wrong, break
+//            return;
+//          }
+//        }
+//
+//        ov_core::CameraData new_measurement;
+//        new_measurement.timestamp = cam_msg_group.first;
+//        for ( auto &index: cam_msg_group.second ) {
+//          new_measurement.timestamps_camera_msgs.insert( new_measurement.timestamps_camera_msgs.end(),
+//                                                         camera_queue[index].timestamps_camera_msgs.begin(),
+//                                                         camera_queue[index].timestamps_camera_msgs.end());
+//          new_measurement.sensor_ids.insert( new_measurement.sensor_ids.end(),
+//                                             camera_queue[index].sensor_ids.begin(),
+//                                             camera_queue[index].sensor_ids.end());
+//          new_measurement.stereo_overlap_groups.insert( new_measurement.stereo_overlap_groups.end(),
+//                                                        camera_queue[index].stereo_overlap_groups.begin(),
+//                                                        camera_queue[index].stereo_overlap_groups.end());
+//          new_measurement.images.insert( new_measurement.images.end(),
+//                                         camera_queue[index].images.begin(),
+//                                         camera_queue[index].images.end());
+//          new_measurement.masks.insert( new_measurement.masks.end(),
+//                                        camera_queue[index].masks.begin(),
+//                                        camera_queue[index].masks.end());
+//        }
+//
+//        _app->feed_measurement_camera(new_measurement);
+//        visualize();
+//
+//        auto rT0_2 = boost::posix_time::microsec_clock::local_time();
+//        double time_total = (rT0_2 - rT0_1).total_microseconds() * 1e-6;
+//        PRINT_INFO(BLUE "[TIME]: %.4f seconds total (%.1f hz)\n" RESET, time_total, 1.0 / time_total);
+//      }
+//
+//      camera_queue.clear();
+//    }
+//    thread_update_running = false;
+//  });
+//
+//  // If we are single threaded, then run single threaded
+//  // Otherwise detach this thread so it runs in the background!
+//  if (!_app->get_params().use_multi_threading) {
+//    thread.join();
+//  } else {
+//    thread.detach();
+//  }
+//}
+void ROS1Visualizer::image_processing() {
   // If the processing queue is currently active / running just return so we can keep getting measurements
   // Otherwise create a second thread to do our update in an async manor
   // The visualization of the state, images, and features will be synchronous with the update!
-  if (thread_update_running)
+  if ( thread_update_running )
     return;
 
   thread_update_running = true;
 
-  std::thread thread([&] {
+  auto rT_update_start = boost::posix_time::microsec_clock::local_time();
+  auto params = _app->get_params();
+
+  {
     // Lock on the queue (prevents new images from appending)
-    std::lock_guard<std::mutex> lck(camera_queue_mtx);
+    std::unique_lock<std::mutex> lck( camera_queue_mtx );
 
-    // Count how many unique image streams
-//    std::map<int, bool> unique_cam_ids;
-//    for (const auto &cam_msg : camera_queue) {
-//      unique_cam_ids[cam_msg.sensor_ids.at(0)] = true;
-//    }
-
-    // If we do not have enough unique cameras then we need to wait
-    // We should wait till we have one of each camera to ensure we propagate in the correct order
-    auto params = _app->get_params();
-//    size_t num_unique_cameras = params.camera_sync_groups.size();
-//    if (unique_cam_ids.size() == num_unique_cameras) {
-    if (!camera_queue.empty()) {
+    if ( !camera_queue.empty()) {
       // Loop through our queue and see if we are able to process any of our camera measurements
 
       // Find groups of camera messages that are within a predefined threshold, starting with the newest message (last
       // in queue) backwards to the oldest. The common timestamp is defined by the newest message in the group
       std::vector<std::pair<double, std::vector<size_t>>> cam_msg_groups;
-      for (size_t k = camera_queue.size(); k --> 0 ; ) {
-        std::vector<size_t> cam_msg_group = {k};
+      for ( size_t k = camera_queue.size(); k-- > 0; ) {
+        std::vector<size_t> cam_msg_group = { k };
 
-        if (k >= 0) {
+        if ( k >= 0 ) {
           // smaller than k because it is an unsigned long and will wrap around to MAX_INT at last decrement
-          for (size_t k_next = k; k_next --> 0; ) {
-            if (camera_queue[k_next].timestamp <= camera_queue[k].timestamp && camera_queue[k_next].timestamp >= camera_queue[k].timestamp - 0.026) {
-              cam_msg_group.push_back(k_next);
+          for ( size_t k_next = k; k_next-- > 0; ) {
+            if ( camera_queue[k_next].timestamp <= camera_queue[k].timestamp &&
+                 camera_queue[k_next].timestamp >= camera_queue[k].timestamp - 0.022671532630920407 ) {
+              cam_msg_group.push_back( k_next );
             }
           }
         }
         k = cam_msg_group.back();
-        cam_msg_groups.emplace_back(camera_queue[k].timestamp, cam_msg_group);
+        cam_msg_groups.emplace_back( camera_queue[k].timestamp, cam_msg_group );
       }
 
-      PRINT_INFO(YELLOW "Found %zu message groups\n" RESET, cam_msg_groups.size());
-
-      for (auto & cam_msg_group : boost::adaptors::reverse(cam_msg_groups)) {
-        auto rT0_1 = boost::posix_time::microsec_clock::local_time();
-
-        std::stringstream ss;
-        for ( auto &index: cam_msg_group.second ) {
-          ss << index << ", ";
+      std::stringstream ss;
+      for ( auto &group: cam_msg_groups ) {
+        ss << "[";
+        for ( auto &id: group.second ) {
+          ss << id << ", ";
         }
-        PRINT_INFO(YELLOW "Processing %zu messages together: %s\n" RESET, cam_msg_group.second.size(), ss.str().c_str());
+        ss << "]";
+      }
+      PRINT_INFO( YELLOW "Found %zu message groups: %s\n" RESET, cam_msg_groups.size(), ss.str().c_str());
 
-        // We are able to process if we have at least one IMU measurement greater than the camera time
-        double timestamp_imu_inC = imu_last_timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
-        if ( cam_msg_group.first > timestamp_imu_inC ) {
-          PRINT_INFO(YELLOW "Sleeping one imu clock to wait for new measurement" RESET);
-          std::this_thread::sleep_for( std::chrono::milliseconds((int64_t) (imu_rate * 1000)));
+      if ( cam_msg_groups.size() > 1 ) {
+        // Iterate camera message groups, starting at the oldest group
+        std::vector<size_t> indices_to_delete;
+        for ( size_t i = 1; i < cam_msg_groups.size(); ++i ) {
+          auto rT0_1 = boost::posix_time::microsec_clock::local_time();
 
-          // read in atomic imu_last_timestamp again
-          timestamp_imu_inC = imu_last_timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()(0);
-          if ( cam_msg_group.first > timestamp_imu_inC ) {
-            // Something went wrong, break
-            return;
+          std::stringstream ss;
+          for ( auto &index: cam_msg_groups[i].second ) {
+            ss << index << ", ";
+          }
+          PRINT_INFO( YELLOW "Processing %zu OLD messages together: %s\n" RESET, cam_msg_groups[i].second.size(),
+                      ss.str().c_str());
+
+          // no need to verify that there is a newer IMu measurement, since there is even a newer camera message group,
+          // which is at least spaced apart Delta T_imu from this one
+
+          ov_core::CameraData new_measurement;
+          new_measurement.timestamp = cam_msg_groups[i].first;
+          for ( auto &index: cam_msg_groups[i].second ) {
+            new_measurement.timestamps_camera_msgs.insert( new_measurement.timestamps_camera_msgs.end(),
+                                                           camera_queue[index].timestamps_camera_msgs.begin(),
+                                                           camera_queue[index].timestamps_camera_msgs.end());
+            new_measurement.sensor_ids.insert( new_measurement.sensor_ids.end(),
+                                               camera_queue[index].sensor_ids.begin(),
+                                               camera_queue[index].sensor_ids.end());
+            new_measurement.stereo_overlap_groups.insert( new_measurement.stereo_overlap_groups.end(),
+                                                          camera_queue[index].stereo_overlap_groups.begin(),
+                                                          camera_queue[index].stereo_overlap_groups.end());
+            new_measurement.images.insert( new_measurement.images.end(),
+                                           camera_queue[index].images.begin(),
+                                           camera_queue[index].images.end());
+            new_measurement.masks.insert( new_measurement.masks.end(),
+                                          camera_queue[index].masks.begin(),
+                                          camera_queue[index].masks.end());
+            indices_to_delete.push_back( index );
+          }
+
+          _app->feed_measurement_camera( new_measurement );
+          visualize();
+
+          auto rT0_2 = boost::posix_time::microsec_clock::local_time();
+          double time_total = (rT0_2 - rT0_1).total_microseconds() * 1e-6;
+          PRINT_INFO( BLUE "[TIME]: %.4f seconds total (%.1f hz)\n" RESET, time_total, 1.0 / time_total );
+        }
+
+        if ( !indices_to_delete.empty()) {
+          // Safely delete the used messgaes from camera_queue by sorting indices_to_delete in descending order
+          std::sort( indices_to_delete.begin(), indices_to_delete.end(), std::greater<size_t>());
+          for ( auto &index: indices_to_delete ) {
+            camera_queue.erase( camera_queue.begin() + index );
           }
         }
+      }
+    }
+  }
+  // camera queue lock unlocked, others may append new measurements now
+  auto rT_update_end = boost::posix_time::microsec_clock::local_time();
+  auto passed_time = (rT_update_end - rT_update_start).total_microseconds();
+  std::this_thread::sleep_for( std::chrono::microseconds((int64_t) (0.022671532630920407 * 1e6) - passed_time ));
 
-        ov_core::CameraData new_measurement;
-        new_measurement.timestamp = cam_msg_group.first;
-        for ( auto &index: cam_msg_group.second ) {
+  {
+    // Lock on the queue (prevents new images from appending)
+    std::unique_lock<std::mutex> lck( camera_queue_mtx );
+
+    if ( !camera_queue.empty()) {
+      // Acquiring the lock might have also took some time, need regrouping of measurements
+      std::vector<std::pair<double, std::vector<size_t>>> cam_msg_groups;
+      for ( size_t k = camera_queue.size(); k-- > 0; ) {
+        std::vector<size_t> cam_msg_group = { k };
+
+        if ( k >= 0 ) {
+          // smaller than k because it is an unsigned long and will wrap around to MAX_INT at last decrement
+          for ( size_t k_next = k; k_next-- > 0; ) {
+            if ( camera_queue[k_next].timestamp <= camera_queue[k].timestamp &&
+                 camera_queue[k_next].timestamp >= camera_queue[k].timestamp - 0.022671532630920407 ) {
+              cam_msg_group.push_back( k_next );
+            }
+          }
+        }
+        k = cam_msg_group.back();
+        cam_msg_groups.emplace_back( camera_queue[k].timestamp, cam_msg_group );
+      }
+      PRINT_INFO( YELLOW "Found %zu NEW message groups\n" RESET, cam_msg_groups.size());
+
+      // Only process the oldest camera message group, newer ones need to be processed next time to ensure proper wait time for camera grouping
+      std::vector<size_t> indices_to_delete;
+
+      auto rT0_1 = boost::posix_time::microsec_clock::local_time();
+
+      std::stringstream ss;
+      for ( auto &index: cam_msg_groups.back().second ) {
+        ss << index << ", ";
+      }
+      PRINT_INFO( YELLOW "Processing %zu NEW messages together: %s\n" RESET, cam_msg_groups.back().second.size(),
+                  ss.str().c_str());
+
+      // no need to verify that there is a newer IMu measurement, since there is even a newer camera message group,
+      // which is at least spaced apart Delta T_imu from this one
+
+      ov_core::CameraData new_measurement;
+      new_measurement.timestamp = cam_msg_groups.back().first;
+      double timestamp_imu_inC = imu_last_timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()( 0 );
+      if ( new_measurement.timestamp <= timestamp_imu_inC ) {
+        for ( auto &index: cam_msg_groups.back().second ) {
           new_measurement.timestamps_camera_msgs.insert( new_measurement.timestamps_camera_msgs.end(),
                                                          camera_queue[index].timestamps_camera_msgs.begin(),
                                                          camera_queue[index].timestamps_camera_msgs.end());
@@ -590,28 +780,28 @@ void ROS1Visualizer::callback_timer_processing(const ros::TimerEvent& timerEvent
           new_measurement.masks.insert( new_measurement.masks.end(),
                                         camera_queue[index].masks.begin(),
                                         camera_queue[index].masks.end());
+          indices_to_delete.push_back( index );
         }
 
-        _app->feed_measurement_camera(new_measurement);
+        _app->feed_measurement_camera( new_measurement );
         visualize();
-
-        auto rT0_2 = boost::posix_time::microsec_clock::local_time();
-        double time_total = (rT0_2 - rT0_1).total_microseconds() * 1e-6;
-        PRINT_INFO(BLUE "[TIME]: %.4f seconds total (%.1f hz)\n" RESET, time_total, 1.0 / time_total);
       }
 
-      camera_queue.clear();
-    }
-    thread_update_running = false;
-  });
+      auto rT0_2 = boost::posix_time::microsec_clock::local_time();
+      double time_total = (rT0_2 - rT0_1).total_microseconds() * 1e-6;
+      PRINT_INFO( BLUE "[TIME]: %.4f seconds total (%.1f hz)\n" RESET, time_total, 1.0 / time_total );
 
-  // If we are single threaded, then run single threaded
-  // Otherwise detach this thread so it runs in the background!
-  if (!_app->get_params().use_multi_threading) {
-    thread.join();
-  } else {
-    thread.detach();
+      if ( !indices_to_delete.empty()) {
+        // Safely delete the used messgaes from camera_queue by sorting indices_to_delete in descending order
+        std::sort( indices_to_delete.begin(), indices_to_delete.end(), std::greater<size_t>());
+        for ( auto &index: indices_to_delete ) {
+          camera_queue.erase( camera_queue.begin() + index );
+        }
+      }
+    }
   }
+
+  thread_update_running = false;
 }
 
 void ROS1Visualizer::callback_monocular(const sensor_msgs::ImageConstPtr &msg0, int cam_id0) {
@@ -665,9 +855,16 @@ void ROS1Visualizer::callback_monocular(const sensor_msgs::ImageConstPtr &msg0, 
   }
 
   // append it to our queue of images
-  std::lock_guard<std::mutex> lck(camera_queue_mtx);
-  camera_queue.push_back(message);
-  std::sort(camera_queue.begin(), camera_queue.end());
+//  std::lock_guard<std::mutex> lck(camera_queue_mtx);
+  {
+    // Critical section secured by mutex lock, automatic unlocking at the end when deconstructing unique_lock object
+    std::unique_lock<std::mutex> lock(camera_queue_mtx);
+    camera_queue.push_back(message);
+    std::sort(camera_queue.begin(), camera_queue.end());
+  }
+
+  std::thread t(&ROS1Visualizer::image_processing, this);
+  t.detach();
 }
 
 void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1, int cam_id0,
@@ -754,9 +951,18 @@ void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, con
   }
 
   // append it to our queue of images
-  std::lock_guard<std::mutex> lck(camera_queue_mtx);
-  camera_queue.push_back(message);
-  std::sort(camera_queue.begin(), camera_queue.end());
+//  std::lock_guard<std::mutex> lck(camera_queue_mtx);
+//  camera_queue.push_back(message);
+//  std::sort(camera_queue.begin(), camera_queue.end());
+  {
+    // Critical section secured by mutex lock, automatic unlocking at the end when deconstructing unique_lock object
+    std::unique_lock<std::mutex> lock(camera_queue_mtx);
+    camera_queue.push_back(message);
+    std::sort(camera_queue.begin(), camera_queue.end());
+  }
+
+  std::thread t(&ROS1Visualizer::image_processing, this);
+  t.detach();
 }
 
 void ROS1Visualizer::callback_multi3( const sensor_msgs::ImageConstPtr &msg0, const sensor_msgs::ImageConstPtr &msg1,
