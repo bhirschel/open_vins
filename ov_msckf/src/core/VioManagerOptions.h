@@ -107,8 +107,8 @@ struct VioManagerOptions {
   /// Whether to remove features that were used for EKF measurement update
   bool delete_used_features = true;
 
-  /// Whether to use a new feature selection that values FoV distribution and stereo correspondence
-  bool use_smart_feature_selection = false;
+  /// Frame ID for rviz visualization
+  std::string frame_id = "world";
 
   /**
    * @brief This function will load print out all estimator settings loaded.
@@ -132,7 +132,7 @@ struct VioManagerOptions {
       parser->parse_config("record_feature_tracking_stats", record_feature_tracking_stats);
       parser->parse_config("record_feature_stats_filepath", record_feature_stats_filepath);
       parser->parse_config("delete_used_features", delete_used_features);
-      parser->parse_config("use_smart_feature_selection", use_smart_feature_selection);
+      parser->parse_config("frame_id", frame_id);
     }
     PRINT_DEBUG("  - dt_slam_delay: %.1f\n", dt_slam_delay);
     PRINT_DEBUG("  - zero_velocity_update: %d\n", try_zupt);
@@ -145,7 +145,7 @@ struct VioManagerOptions {
     PRINT_DEBUG("  - record feature tracking stats?: %s\n", record_feature_tracking_stats ? "true" : "false");
     PRINT_DEBUG("  - record feature stats filepath: %s\n", record_feature_stats_filepath.c_str());
     PRINT_DEBUG("  - delete used features?: %s\n", delete_used_features ? "true" : "false");
-    PRINT_DEBUG("  - use smart feature selection?: %s\n", use_smart_feature_selection ? "true" : "false");
+    PRINT_DEBUG("  - frame ID: %s\n", frame_id.c_str());
   }
 
   // NOISE / CHI2 ============================
