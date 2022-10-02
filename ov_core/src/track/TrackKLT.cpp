@@ -498,12 +498,12 @@ void TrackKLT::perform_detection_monocular(const std::vector<cv::Mat> &img0pyr, 
 //  PRINT_DEBUG(BLUE "[TrackKLT]: Existing features %d | N.o. new features need %d \n" RESET, pts0.size(), num_featsneeded);
 
   // If we don't need any features, just return
-  if (num_featsneeded < std::min(75, (int)(0.2 * num_features)))
-  {
+//  if (num_featsneeded >= (int)(0.2 * num_features))
+//  {
 //    PRINT_DEBUG( BLUE "[TrackKLT]: N.o. new features need less than %d, RETURN \n" RESET,
 //                 std::min( 75, (int) (0.2 * num_features)));
-    return;
-  }
+//    return;
+//  }
 
   // Extract our features (use fast with griding)
   std::vector<cv::KeyPoint> pts0_ext;
@@ -600,7 +600,7 @@ void TrackKLT::perform_detection_stereo(const std::vector<cv::Mat> &img0pyr, con
   // LEFT: if we need features we should extract them in the current frame
   // LEFT: we will also try to track them from this frame over to the right frame
   // LEFT: in the case that we have two features that are the same, then we should merge them
-  if (num_featsneeded_0 > std::min(75, (int)(0.2 * num_features))) {
+  if (true /*num_featsneeded_0 >= (int)(0.2 * num_features)*/) {
 
     // Extract our features (use fast with griding)
     std::vector<cv::KeyPoint> pts0_ext;
@@ -734,7 +734,7 @@ void TrackKLT::perform_detection_stereo(const std::vector<cv::Mat> &img0pyr, con
   // RIGHT: if we need features we should extract them in the current frame
   // RIGHT: note that we don't track them to the left as we already did left->right tracking above
   int num_featsneeded_1 = num_features - (int)pts1.size();
-  if (num_featsneeded_1 > std::min(75, (int)(0.2 * num_features))) {
+  if (true /*num_featsneeded_1 >= (int)(0.2 * num_features)*/) {
 
     // Extract our features (use fast with griding)
     std::vector<cv::KeyPoint> pts1_ext;

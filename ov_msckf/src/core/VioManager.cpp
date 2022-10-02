@@ -151,8 +151,7 @@ VioManager::VioManager(VioManagerOptions &params_) : thread_init_running(false),
                      << ",up_slam_sigma_px:" << params.slam_options.sigma_pix
                      << ",up_slam_chi2_multiplier:" << params.slam_options.chi2_multipler
                      << ",use_mask:" << params.use_mask
-                     << ",delete_used_features:" << params.delete_used_features
-                     << ",use_smart_feature_selection:" << params.use_smart_feature_selection << std::endl;
+                     << ",delete_used_features:" << params.delete_used_features << std::endl;
   }
 
   //===================================================================================
