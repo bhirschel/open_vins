@@ -85,7 +85,7 @@ public:
   /**
    * @brief Will visualize the system if we have new things
    */
-  void visualize();
+  void visualize(std::vector<int> &cameras);
 
   /**
    * @brief Will publish our odometry message for the current timestep.
@@ -138,7 +138,7 @@ protected:
   void publish_state();
 
   /// Publish currently used msckf features in the image
-  void publish_msckf_images();
+  void publish_msckf_images(std::vector<int> &cameras);
 
   /// Publish the active tracking image
   void publish_history_images();
@@ -212,7 +212,7 @@ protected:
 
   // last imu message timestamp we have received
   std::atomic<double> imu_last_timestamp;
-  const double imu_rate = 1.0 / 100.0;
+//  const double imu_rate = 1.0 / 100.0;
 
   // Last camera message timestamps we have received (mapped by cam id)
   std::map<int, double> camera_last_timestamp;

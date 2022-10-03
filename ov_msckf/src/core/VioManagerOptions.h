@@ -110,6 +110,9 @@ struct VioManagerOptions {
   /// Frame ID for rviz visualization
   std::string frame_id = "world";
 
+  /// Maximal time difference to wait upon processing of a new image to form a camera message group with Adaptive Scheduling
+  double t_cam_offset_allowance = 0.025;
+
   /**
    * @brief This function will load print out all estimator settings loaded.
    * This allows for visual checking that everything was loaded properly from ROS/CMD parsers.
@@ -133,6 +136,7 @@ struct VioManagerOptions {
       parser->parse_config("record_feature_stats_filepath", record_feature_stats_filepath);
       parser->parse_config("delete_used_features", delete_used_features);
       parser->parse_config("frame_id", frame_id);
+      parser->parse_config("t_cam_offset_allowance", t_cam_offset_allowance);
     }
     PRINT_DEBUG("  - dt_slam_delay: %.1f\n", dt_slam_delay);
     PRINT_DEBUG("  - zero_velocity_update: %d\n", try_zupt);
@@ -146,6 +150,7 @@ struct VioManagerOptions {
     PRINT_DEBUG("  - record feature stats filepath: %s\n", record_feature_stats_filepath.c_str());
     PRINT_DEBUG("  - delete used features?: %s\n", delete_used_features ? "true" : "false");
     PRINT_DEBUG("  - frame ID: %s\n", frame_id.c_str());
+    PRINT_DEBUG("  - t_cam_offset_allowance: %.8f\n", t_cam_offset_allowance);
   }
 
   // NOISE / CHI2 ============================

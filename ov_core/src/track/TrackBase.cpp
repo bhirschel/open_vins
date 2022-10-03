@@ -217,7 +217,7 @@ void TrackBase::display_history(cv::Mat &img_out, int r1, int g1, int b1, int r2
   }
 }
 
-void TrackBase::display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, int r2, int g2, int b2, const std::vector<std::shared_ptr<Feature>>& good_features_MSCKF_feat_copy,
+void TrackBase::display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, int r2, int g2, int b2, const std::vector<std::shared_ptr<Feature>>& good_features_MSCKF_feat_copy, std::vector<int> &cameras,
                                       std::string overlay) {
   // Cache the images to prevent other threads from editing while we viz (which can be slow)
   std::map<size_t, cv::Mat> img_last_cache, img_mask_last_cache;
@@ -320,8 +320,9 @@ void TrackBase::display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, 
     // Draw what camera this is
     auto txtpt = (is_small) ? cv::Point(10, 30) : cv::Point(30, 60);
     if (overlay == "") {
+      auto color = std::find(cameras.begin(), cameras.end(), pair.first) != cameras.end() ? cv::Scalar(0, 255, 0) : cv::Scalar(62, 175, 252);
       cv::putText(img_temp, "CAM:" + std::to_string((int)pair.first), txtpt, cv::FONT_HERSHEY_COMPLEX_SMALL, (is_small) ? 1.5 : 3.0,
-                  cv::Scalar(0, 255, 0), 3);
+                  color, 3);
     } else {
       cv::putText(img_temp, overlay, txtpt, cv::FONT_HERSHEY_COMPLEX_SMALL, (is_small) ? 1.5 : 3.0, cv::Scalar(0, 0, 255), 3);
     }

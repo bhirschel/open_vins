@@ -61,6 +61,7 @@ void TrackKLT::feed_new_camera(const CameraData &message) {
 //  }
 
   std::vector<int> processed_ids;
+  std::vector<std::thread> vec_of_threads;
 
   // TODO(bhirschel) evaluate possibilities for parallel_for
   for (auto & group : message.stereo_overlap_groups) {
@@ -81,12 +82,12 @@ void TrackKLT::feed_new_camera(const CameraData &message) {
     if (group.size() == 1) {
       processed_ids.insert(processed_ids.end(), group.begin(), group.end());
       size_t msg_id = std::find(message.sensor_ids.begin(), message.sensor_ids.end(), group[0]) - message.sensor_ids.begin();
-      feed_monocular(message, msg_id);
+      vec_of_threads.emplace_back(std::thread(&TrackKLT::feed_monocular, this, std::ref(message), msg_id));
     } else if (group.size() == 2) {
       processed_ids.insert(processed_ids.end(), group.begin(), group.end());
       size_t msg_id_left = std::find(message.sensor_ids.begin(), message.sensor_ids.end(), group[0]) - message.sensor_ids.begin();
       size_t msg_id_right = std::find(message.sensor_ids.begin(), message.sensor_ids.end(), group[1]) - message.sensor_ids.begin();
-      feed_stereo(message, msg_id_left, msg_id_right);
+      vec_of_threads.emplace_back(std::thread(&TrackKLT::feed_stereo, this, std::ref(message), msg_id_left, msg_id_right));
     } else {
       PRINT_ERROR(RED "[ERROR]: invalid number of images grouped as stereo overlap group (Size %zu), we only support mono or stereo tracking", group.size());
       std::exit(EXIT_FAILURE);
@@ -100,7 +101,12 @@ void TrackKLT::feed_new_camera(const CameraData &message) {
   std::set_difference(msg_id_copy.begin(), msg_id_copy.end(), processed_ids.begin(), processed_ids.end(), std::back_inserter(diff));
   for (auto & id : diff) {
     size_t msg_id = std::find(message.sensor_ids.begin(), message.sensor_ids.end(), id) - message.sensor_ids.begin();
-    feed_monocular(message, msg_id);
+    vec_of_threads.emplace_back(std::thread(&TrackKLT::feed_monocular, this, std::ref(message), msg_id));
+  }
+
+  // Let all threads join together before continuing
+  for (auto &t : vec_of_threads) {
+    t.join();
   }
 }
 

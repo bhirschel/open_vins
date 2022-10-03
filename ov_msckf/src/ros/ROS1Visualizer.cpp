@@ -306,7 +306,7 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
 //  }
 }
 
-void ROS1Visualizer::visualize() {
+void ROS1Visualizer::visualize(std::vector<int> &cameras) {
 
   // Return if we have already visualized
   if (last_visualization_timestamp == _app->get_state()->_timestamp && _app->initialized())
@@ -318,7 +318,7 @@ void ROS1Visualizer::visualize() {
   rT0_1 = boost::posix_time::microsec_clock::local_time();
 
   // publish current msckf features in image
-  publish_msckf_images();
+  publish_msckf_images(cameras);
 
   // publish history image
   publish_history_images();
@@ -629,20 +629,18 @@ void ROS1Visualizer::image_processing() {
     // Lock on the queue (prevents new images from appending)
     std::unique_lock<std::mutex> lck( camera_queue_mtx );
 
-    if ( !camera_queue.empty()) {
-      // Loop through our queue and see if we are able to process any of our camera measurements
-
+    if (camera_queue.size() > 1) {
       // Find groups of camera messages that are within a predefined threshold, starting with the newest message (last
       // in queue) backwards to the oldest. The common timestamp is defined by the newest message in the group
       std::vector<std::pair<double, std::vector<size_t>>> cam_msg_groups;
       for ( size_t k = camera_queue.size(); k-- > 0; ) {
-        std::vector<size_t> cam_msg_group = { k };
+        std::vector<size_t> cam_msg_group = { k }; // Holds camera_queue indices
 
         if ( k >= 0 ) {
           // smaller than k because it is an unsigned long and will wrap around to MAX_INT at last decrement
           for ( size_t k_next = k; k_next-- > 0; ) {
             if ( camera_queue[k_next].timestamp <= camera_queue[k].timestamp &&
-                 camera_queue[k_next].timestamp >= camera_queue[k].timestamp - 0.022671532630920407 ) {
+                 camera_queue[k_next].timestamp >= camera_queue[k].timestamp - params.t_cam_offset_allowance ) {
               cam_msg_group.push_back( k_next );
             }
           }
@@ -652,33 +650,37 @@ void ROS1Visualizer::image_processing() {
       }
 
       std::stringstream ss;
+      ss << std::fixed << std::setprecision(8);
       for ( auto &group: cam_msg_groups ) {
         ss << "[";
         for ( auto &id: group.second ) {
-          ss << id << ", ";
+          ss << id << " (" << camera_queue[id].timestamp << "), ";
         }
         ss << "]";
       }
-      PRINT_INFO( YELLOW "Found %zu message groups: %s\n" RESET, cam_msg_groups.size(), ss.str().c_str());
+//      PRINT_INFO( YELLOW "Found %zu message groups: %s\n" RESET, cam_msg_groups.size(), ss.str().c_str());
 
       if ( cam_msg_groups.size() > 1 ) {
         // Iterate camera message groups, starting at the oldest group
         std::vector<size_t> indices_to_delete;
-        for ( size_t i = 1; i < cam_msg_groups.size(); ++i ) {
+        for ( size_t i = cam_msg_groups.size(); i-->1; ) {
           auto rT0_1 = boost::posix_time::microsec_clock::local_time();
 
-          std::stringstream ss;
-          for ( auto &index: cam_msg_groups[i].second ) {
-            ss << index << ", ";
-          }
-          PRINT_INFO( YELLOW "Processing %zu OLD messages together: %s\n" RESET, cam_msg_groups[i].second.size(),
-                      ss.str().c_str());
+//          std::stringstream ss;
+//          ss << std::fixed << std::setprecision(8);
+//          for ( auto &index: cam_msg_groups[i].second ) {
+//            ss << index << " (" << camera_queue[index].timestamp << "), ";
+//          }
+//          PRINT_INFO( YELLOW "Processing %zu OLD messages together: %s\n" RESET, cam_msg_groups[i].second.size(),
+//                      ss.str().c_str());
 
           // no need to verify that there is a newer IMu measurement, since there is even a newer camera message group,
           // which is at least spaced apart Delta T_imu from this one
 
           ov_core::CameraData new_measurement;
+          std::vector<int> cameras;
           new_measurement.timestamp = cam_msg_groups[i].first;
+          new_measurement.stereo_overlap_groups = _app->get_params().stereo_overlap_groups;
           for ( auto &index: cam_msg_groups[i].second ) {
             new_measurement.timestamps_camera_msgs.insert( new_measurement.timestamps_camera_msgs.end(),
                                                            camera_queue[index].timestamps_camera_msgs.begin(),
@@ -686,20 +688,18 @@ void ROS1Visualizer::image_processing() {
             new_measurement.sensor_ids.insert( new_measurement.sensor_ids.end(),
                                                camera_queue[index].sensor_ids.begin(),
                                                camera_queue[index].sensor_ids.end());
-            new_measurement.stereo_overlap_groups.insert( new_measurement.stereo_overlap_groups.end(),
-                                                          camera_queue[index].stereo_overlap_groups.begin(),
-                                                          camera_queue[index].stereo_overlap_groups.end());
             new_measurement.images.insert( new_measurement.images.end(),
                                            camera_queue[index].images.begin(),
                                            camera_queue[index].images.end());
             new_measurement.masks.insert( new_measurement.masks.end(),
                                           camera_queue[index].masks.begin(),
                                           camera_queue[index].masks.end());
+            cameras.insert(cameras.end(), camera_queue[index].sensor_ids.begin(), camera_queue[index].sensor_ids.end());
             indices_to_delete.push_back( index );
           }
 
           _app->feed_measurement_camera( new_measurement );
-          visualize();
+          visualize(cameras);
 
           auto rT0_2 = boost::posix_time::microsec_clock::local_time();
           double time_total = (rT0_2 - rT0_1).total_microseconds() * 1e-6;
@@ -719,7 +719,7 @@ void ROS1Visualizer::image_processing() {
   // camera queue lock unlocked, others may append new measurements now
   auto rT_update_end = boost::posix_time::microsec_clock::local_time();
   auto passed_time = (rT_update_end - rT_update_start).total_microseconds();
-  std::this_thread::sleep_for( std::chrono::microseconds((int64_t) (0.022671532630920407 * 1e6) - passed_time ));
+  std::this_thread::sleep_for( std::chrono::microseconds((int64_t) (params.t_cam_offset_allowance * 1e6) - passed_time ));
 
   {
     // Lock on the queue (prevents new images from appending)
@@ -743,25 +743,25 @@ void ROS1Visualizer::image_processing() {
         k = cam_msg_group.back();
         cam_msg_groups.emplace_back( camera_queue[k].timestamp, cam_msg_group );
       }
-      PRINT_INFO( YELLOW "Found %zu NEW message groups\n" RESET, cam_msg_groups.size());
+//      PRINT_INFO( YELLOW "Found %zu NEW message groups\n" RESET, cam_msg_groups.size());
 
       // Only process the oldest camera message group, newer ones need to be processed next time to ensure proper wait time for camera grouping
       std::vector<size_t> indices_to_delete;
 
       auto rT0_1 = boost::posix_time::microsec_clock::local_time();
 
-      std::stringstream ss;
-      for ( auto &index: cam_msg_groups.back().second ) {
-        ss << index << ", ";
-      }
-      PRINT_INFO( YELLOW "Processing %zu NEW messages together: %s\n" RESET, cam_msg_groups.back().second.size(),
-                  ss.str().c_str());
-
-      // no need to verify that there is a newer IMu measurement, since there is even a newer camera message group,
-      // which is at least spaced apart Delta T_imu from this one
+//      std::stringstream ss;
+//      ss << std::fixed << std::setprecision(8);
+//      for ( auto &index: cam_msg_groups.back().second ) {
+//        ss << index << " (" << camera_queue[index].timestamp << "), ";
+//      }
+//      PRINT_INFO( YELLOW "Processing %zu NEW messages together: %s\n" RESET, cam_msg_groups.back().second.size(),
+//                  ss.str().c_str());
 
       ov_core::CameraData new_measurement;
+      std::vector<int> cameras;
       new_measurement.timestamp = cam_msg_groups.back().first;
+      new_measurement.stereo_overlap_groups = _app->get_params().stereo_overlap_groups;
       double timestamp_imu_inC = imu_last_timestamp - _app->get_state()->_calib_dt_CAMtoIMU->value()( 0 );
       if ( new_measurement.timestamp <= timestamp_imu_inC ) {
         for ( auto &index: cam_msg_groups.back().second ) {
@@ -771,20 +771,18 @@ void ROS1Visualizer::image_processing() {
           new_measurement.sensor_ids.insert( new_measurement.sensor_ids.end(),
                                              camera_queue[index].sensor_ids.begin(),
                                              camera_queue[index].sensor_ids.end());
-          new_measurement.stereo_overlap_groups.insert( new_measurement.stereo_overlap_groups.end(),
-                                                        camera_queue[index].stereo_overlap_groups.begin(),
-                                                        camera_queue[index].stereo_overlap_groups.end());
           new_measurement.images.insert( new_measurement.images.end(),
                                          camera_queue[index].images.begin(),
                                          camera_queue[index].images.end());
           new_measurement.masks.insert( new_measurement.masks.end(),
                                         camera_queue[index].masks.begin(),
                                         camera_queue[index].masks.end());
+          cameras.insert(cameras.end(), camera_queue[index].sensor_ids.begin(), camera_queue[index].sensor_ids.end());
           indices_to_delete.push_back( index );
         }
 
         _app->feed_measurement_camera( new_measurement );
-        visualize();
+        visualize(cameras);
       }
 
       auto rT0_2 = boost::posix_time::microsec_clock::local_time();
@@ -1197,14 +1195,14 @@ void ROS1Visualizer::publish_state() {
   poses_seq_imu++;
 }
 
-void ROS1Visualizer::publish_msckf_images() {
+void ROS1Visualizer::publish_msckf_images(std::vector<int> &cameras) {
 
   // Check if we have subscribers
   if (it_pub_msckf_img.getNumSubscribers() == 0)
     return;
 
   // Get our image of history tracks
-  cv::Mat img_history = _app->get_active_msckf_viz_image();
+  cv::Mat img_history = _app->get_active_msckf_viz_image(cameras);
 
   // Create our message
   std_msgs::Header header;

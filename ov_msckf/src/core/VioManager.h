@@ -172,7 +172,7 @@ public:
   std::shared_ptr<Propagator> get_propagator() { return propagator; }
 
   /// Get a nice visualization image of what tracks we have
-  cv::Mat get_active_msckf_viz_image() {
+  cv::Mat get_active_msckf_viz_image(std::vector<int> &cameras) {
     // Text we will overlay if needed
     std::string overlay = (did_zupt_update) ? "zvupt" : "";
     overlay = (!is_initialized_vio) ? "init" : overlay;
@@ -180,7 +180,7 @@ public:
     // Get the current active tracks
     cv::Mat img_history;
 
-    trackFEATS->display_msckf_history(img_history, 255, 255, 0, 255, 255, 255, good_features_MSCKF_feat_copy, overlay);
+    trackFEATS->display_msckf_history(img_history, 255, 255, 0, 255, 255, 255, good_features_MSCKF_feat_copy, cameras, overlay);
 
     // Finally return the image
     return img_history;
