@@ -305,7 +305,7 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
 //  }
 }
 
-void ROS1Visualizer::visualize() {
+void ROS1Visualizer::visualize(std::vector<int> &cameras) {
 
   // Return if we have already visualized
   if (last_visualization_timestamp == _app->get_state()->_timestamp && _app->initialized())
@@ -317,7 +317,7 @@ void ROS1Visualizer::visualize() {
   rT0_1 = boost::posix_time::microsec_clock::local_time();
 
   // publish current msckf features in image
-  publish_msckf_images();
+  publish_msckf_images(cameras);
 
   // publish history image
   publish_history_images();
@@ -373,7 +373,7 @@ void ROS1Visualizer::visualize_odometry(double timestamp) {
 
     nav_msgs::Odometry odomIinM;
     odomIinM.header.stamp = ros::Time(timestamp);
-    odomIinM.header.frame_id = _app->get_params().frame_id"";
+    odomIinM.header.frame_id = _app->get_params().frame_id;
 
     // The POSE component (orientation and position)
     odomIinM.pose.pose.orientation.x = state_plus(0);
@@ -526,7 +526,11 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
       while (!camera_queue.empty() && camera_queue.at(0).timestamp < timestamp_imu_inC) {
         auto rT0_1 = boost::posix_time::microsec_clock::local_time();
         _app->feed_measurement_camera(camera_queue.at(0));
-        visualize();
+        std::vector<int> cameras;
+        for (auto &id : camera_queue.at(0).sensor_ids) {
+          cameras.push_back(id);
+        }
+        visualize(cameras);
         camera_queue.pop_front();
         auto rT0_2 = boost::posix_time::microsec_clock::local_time();
         double time_total = (rT0_2 - rT0_1).total_microseconds() * 1e-6;
@@ -922,14 +926,14 @@ void ROS1Visualizer::publish_state() {
   poses_seq_imu++;
 }
 
-void ROS1Visualizer::publish_msckf_images() {
+void ROS1Visualizer::publish_msckf_images(std::vector<int> &cameras) {
 
   // Check if we have subscribers
   if (it_pub_msckf_img.getNumSubscribers() == 0)
     return;
 
   // Get our image of history tracks
-  cv::Mat img_history = _app->get_active_msckf_viz_image();
+  cv::Mat img_history = _app->get_active_msckf_viz_image(cameras);
 
   // Create our message
   std_msgs::Header header;

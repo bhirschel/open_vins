@@ -61,94 +61,6 @@ Visualization Manager:
       Frame Timeout: 999999
       Frames:
         All Enabled: true
-        Asterix:
-          Value: true
-        arm_end_link:
-          Value: true
-        arm_link_0:
-          Value: true
-        arm_link_1:
-          Value: true
-        arm_link_2:
-          Value: true
-        arm_link_3:
-          Value: true
-        arm_link_4:
-          Value: true
-        arm_link_5:
-          Value: true
-        autonomy_box_link:
-          Value: true
-        base_link:
-          Value: true
-        base_stabilized:
-          Value: true
-        camera360_center_link:
-          Value: true
-        chassis_link:
-          Value: true
-        flipper_back_motor_link:
-          Value: true
-        flipper_front_motor_link:
-          Value: true
-        gripper_base:
-          Value: true
-        gripper_link_l1:
-          Value: true
-        gripper_link_l2:
-          Value: true
-        gripper_link_r1:
-          Value: true
-        gripper_link_r2:
-          Value: true
-        gripper_servo_link:
-          Value: true
-        mocap:
-          Value: true
-        odom:
-          Value: true
-        pinhole_back_camera_frame:
-          Value: true
-        pinhole_back_optical_frame:
-          Value: true
-        pinhole_front_camera_frame:
-          Value: true
-        pinhole_front_optical_frame:
-          Value: true
-        pinhole_vision_back_camera_frame:
-          Value: true
-        pinhole_vision_back_optical_frame:
-          Value: true
-        pinhole_vision_front_camera_frame:
-          Value: true
-        pinhole_vision_front_optical_frame:
-          Value: true
-        pinhole_vision_left_camera_frame:
-          Value: true
-        pinhole_vision_left_optical_frame:
-          Value: true
-        pinhole_vision_right_camera_frame:
-          Value: true
-        pinhole_vision_right_optical_frame:
-          Value: true
-        sensor_head_mount_link:
-          Value: true
-        sensor_head_pitch_link:
-          Value: true
-        sensor_head_yaw_link:
-          Value: true
-        spin_lidar_mount_link:
-          Value: true
-        submap_0:
-          Value: true
-        world:
-          Value: true
-        world_cartographer:
-          Value: true
-        world_cartographer_optimized:
-          Value: true
-        world_enu:
-          Value: true
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -156,20 +68,7 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        mocap:
-          Asterix:
-            {}
-        world_enu:
-          world:
-            world_cartographer:
-              odom:
-                base_link:
-                  base_stabilized:
-                    {}
-                world_cartographer_optimized:
-                  {}
-              submap_0:
-                {}
+        {}
       Update Interval: 0
       Value: true
     - Class: rviz/Image
@@ -428,7 +327,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.269628524780273
+      Distance: 10
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -444,9 +343,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5703984498977661
-      Target Frame: Asterix
-      Yaw: 3.548581838607788
+      Pitch: 0.7853981852531433
+      Target Frame: imu
+      Yaw: 0.7853981852531433
     Saved: ~
 Window Geometry:
   Current Depths:

@@ -122,12 +122,15 @@ VioManager::VioManager(VioManagerOptions &params_) : thread_init_running(false),
     for (int i = 0; i < params.state_options.num_cameras; i++) {
       of_feature_stats << ",cam" << i << "_timestamp";
     }
-    of_feature_stats << ",total_feats,feats_lost,feats_marg,feats_maxtrack";
+    of_feature_stats << ",mean_track_length,total_feats,feats_lost,feats_marg,feats_maxtrack";
     if ( state->_options.max_slam_features > 0 )
     {
       of_feature_stats << ",feats_slam,state_slam_feats";
     }
     of_feature_stats << ",msckf_feats_init,msckf_feats_pre,msckf_feats_past";
+    for (int i = 0; i < params.state_options.num_cameras; i++) {
+      of_feature_stats << ",cam" << i << "_used_msckf_feats";
+    }
     if ( state->_options.max_slam_features > 0 )
     {
       of_feature_stats << ",slam_feats_pre,slam_feats_past";
@@ -145,6 +148,8 @@ VioManager::VioManager(VioManagerOptions &params_) : thread_init_running(false),
                      << ",num_pts:" << params.num_pts
                      << ",grid:" << params.grid_x << "x" << params.grid_y
                      << ",num_pts:" << params.num_pts
+                     << ",fast_threshold:" << params.fast_threshold
+                     << ",min_px_dist:" << params.min_px_dist
                      << ",downsample:" << params.downsample_cameras
                      << ",up_msckf_sigma_px:" << params.msckf_options.sigma_pix
                      << ",up_msckf_chi2_multiplier:" << params.msckf_options.chi2_multipler
@@ -600,13 +605,13 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
     // Thus we should be able to visualize the other unique camera stream
     // MSCKF features as they will also be appended to the vector
     good_features_MSCKF.clear();
-//    good_features_MSCKF_ids.clear();
   }
 
   // Delete old features from the good MSCKF feature IDs vector that are from the same cameras as the current message
   auto it_msckf_feat_copy = good_features_MSCKF_feat_copy.begin();
   while (it_msckf_feat_copy != good_features_MSCKF_feat_copy.end()) {
     bool found_feat = false;
+    // Try to find the camera that generated this feature in our current message
     for (auto &cams : (*it_msckf_feat_copy)->timestamps) {
       if (std::find(message.sensor_ids.begin(), message.sensor_ids.end(), cams.first) != message.sensor_ids.end()) {
         found_feat = true;
@@ -614,6 +619,8 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
       }
     }
 
+    // If the camera of the current feature is part of the current message, delete it in order to update it with our
+    // new good features
     if (found_feat) {
       it_msckf_feat_copy = good_features_MSCKF_feat_copy.erase(it_msckf_feat_copy);
     } else {
@@ -713,6 +720,25 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
     // The timestamp in the state will be the last camera time
     double t_ItoC = state->_calib_dt_CAMtoIMU->value()(0);
     double timestamp_inI = state->_timestamp + t_ItoC;
+
+    size_t track_length = 0;
+
+    // Count how which camera was responsible for how many used msckf features
+    std::vector<size_t> msckf_feats_per_cam(params.state_options.num_cameras);
+    std::fill(msckf_feats_per_cam.begin(), msckf_feats_per_cam.end(), 0);
+    for (auto &feat: featsup_MSCKF) {
+      for (size_t i = 0; i < msckf_feats_per_cam.size(); ++i) {
+        if (feat->timestamps.find(i) != feat->timestamps.end()) {
+          msckf_feats_per_cam[i]++;
+        }
+      }
+      size_t local_track_length = 0;
+      for (const auto &pair : feat->timestamps) {
+        local_track_length += pair.second.size();
+      }
+      track_length += local_track_length;
+    }
+
     // Append to the file
     of_feature_stats << std::fixed << std::setprecision(15) << timestamp_inI;
     for (size_t i = 0; i < params.state_options.num_cameras; i++) {
@@ -724,11 +750,15 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
         of_feature_stats << ",-1";
       }
     }
+    of_feature_stats << "," << (!featsup_MSCKF.empty() ? double(double(track_length) / double(featsup_MSCKF.size())) : 0.0); // prevent nans
     of_feature_stats << "," << dbg_total_feats << "," << dbg_feats_lost << "," << dbg_feats_marg << "," << dbg_feats_maxtracks;
     if (state->_options.max_slam_features > 0) {
       of_feature_stats << "," << dbg_feats_slam << "," << dbg_state_slam_feats;
     }
     of_feature_stats << "," << dbg_msckf_feats_init << "," << dbg_msckf_feats_pre << "," << dbg_msckf_feats_past;
+    for (int i = 0; i < params.state_options.num_cameras; i++) {
+      of_feature_stats << "," << msckf_feats_per_cam[i];
+    }
     if (state->_options.max_slam_features > 0) {
       of_feature_stats << "," << dbg_slam_feats_pre << "," << dbg_slam_feats_past;
     }

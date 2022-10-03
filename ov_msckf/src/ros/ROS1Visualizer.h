@@ -83,7 +83,7 @@ public:
   /**
    * @brief Will visualize the system if we have new things
    */
-  void visualize();
+  void visualize(std::vector<int> &cameras);
 
   /**
    * @brief Will publish our odometry message for the current timestep.
@@ -132,7 +132,7 @@ protected:
   void publish_state();
 
   /// Publish currently used msckf features in the image
-  void publish_msckf_images();
+  void publish_msckf_images(std::vector<int> &cameras);
 
   /// Publish the active tracking image
   void publish_history_images();

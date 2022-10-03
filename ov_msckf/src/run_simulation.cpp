@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
 #endif
         sys->feed_measurement_simulation(buffer_timecam, buffer_camids, buffer_feats);
 #if ROS_AVAILABLE == 1 || ROS_AVAILABLE == 2
-        viz->visualize();
+        viz->visualize(camids);
 #endif
       }
       buffer_timecam = time_cam;
