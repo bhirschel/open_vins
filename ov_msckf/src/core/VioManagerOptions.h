@@ -254,6 +254,8 @@ struct VioManagerOptions {
           PRINT_WARNING(YELLOW "Parameter \"stereo_overlap\" malformatted. May only accept none or overlap\n" RESET);
         }
       }
+      parser->parse_config("use_mask", use_mask);
+
       for (int i = 0; i < state_options.num_cameras; i++) {
 
         // Time offset (use the first one)
@@ -348,13 +350,12 @@ struct VioManagerOptions {
         }
 
         camera_extrinsics.insert({i, cam_eigen});
-      }
-      parser->parse_config("use_mask", use_mask);
-      if (use_mask) {
-        for (int i = 0; i < state_options.num_cameras; i++) {
+
+        // Robot mask
+        if (use_mask) {
           std::string mask_path;
           std::string mask_node = "mask" + std::to_string(i);
-          parser->parse_config(mask_node, mask_path);
+          parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "mask_path", mask_path, "mask.png");
           std::string total_mask_path = parser->get_config_folder() + mask_path;
           if (!boost::filesystem::exists(total_mask_path)) {
             PRINT_ERROR(RED "VioManager(): invalid mask path:\n" RESET);
