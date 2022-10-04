@@ -46,7 +46,7 @@ ROS1Visualizer::ROS1Visualizer(std::shared_ptr<ros::NodeHandle> nh, std::shared_
   pub_points_msckf = nh->advertise<sensor_msgs::PointCloud2>("/ov_msckf/points_msckf", 2);
   PRINT_DEBUG("Publishing: %s\n", pub_points_msckf.getTopic().c_str());
   pub_points_slam = nh->advertise<sensor_msgs::PointCloud2>("/ov_msckf/points_slam", 2);
-  PRINT_DEBUG("Publishing: %s\n", pub_points_msckf.getTopic().c_str());
+  PRINT_DEBUG("Publishing: %s\n", pub_points_slam.getTopic().c_str());
   pub_points_aruco = nh->advertise<sensor_msgs::PointCloud2>("/ov_msckf/points_aruco", 2);
   PRINT_DEBUG("Publishing: %s\n", pub_points_aruco.getTopic().c_str());
   pub_points_sim = nh->advertise<sensor_msgs::PointCloud2>("/ov_msckf/points_sim", 2);
@@ -1242,17 +1242,17 @@ void ROS1Visualizer::publish_features() {
 
   // Get our good MSCKF features
   std::vector<Eigen::Vector3d> feats_msckf = _app->get_good_features_MSCKF();
-  sensor_msgs::PointCloud2 cloud = RosVisualizerHelper::get_ros_pointcloud(feats_msckf);
+  sensor_msgs::PointCloud2 cloud = RosVisualizerHelper::get_ros_pointcloud(feats_msckf, _app->get_params().frame_id);
   pub_points_msckf.publish(cloud);
 
   // Get our good SLAM features
   std::vector<Eigen::Vector3d> feats_slam = _app->get_features_SLAM();
-  sensor_msgs::PointCloud2 cloud_SLAM = RosVisualizerHelper::get_ros_pointcloud(feats_slam);
+  sensor_msgs::PointCloud2 cloud_SLAM = RosVisualizerHelper::get_ros_pointcloud(feats_slam, _app->get_params().frame_id);
   pub_points_slam.publish(cloud_SLAM);
 
   // Get our good ARUCO features
   std::vector<Eigen::Vector3d> feats_aruco = _app->get_features_ARUCO();
-  sensor_msgs::PointCloud2 cloud_ARUCO = RosVisualizerHelper::get_ros_pointcloud(feats_aruco);
+  sensor_msgs::PointCloud2 cloud_ARUCO = RosVisualizerHelper::get_ros_pointcloud(feats_aruco, _app->get_params().frame_id);
   pub_points_aruco.publish(cloud_ARUCO);
 
   // Skip the rest of we are not doing simulation
@@ -1261,7 +1261,7 @@ void ROS1Visualizer::publish_features() {
 
   // Get our good SIMULATION features
   std::vector<Eigen::Vector3d> feats_sim = _sim->get_map_vec();
-  sensor_msgs::PointCloud2 cloud_SIM = RosVisualizerHelper::get_ros_pointcloud(feats_sim);
+  sensor_msgs::PointCloud2 cloud_SIM = RosVisualizerHelper::get_ros_pointcloud(feats_sim, _app->get_params().frame_id);
   pub_points_sim.publish(cloud_SIM);
 }
 
