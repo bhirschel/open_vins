@@ -26,6 +26,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <iomanip>
 
 #include "utils/Loader.h"
 #include "utils/Statistics.h"
@@ -125,20 +126,30 @@ int main(int argc, char **argv) {
   // Now loop through each and plot it!
   for (size_t n = 0; n < names.size(); n++) {
 
+    std::stringstream ss_x, ss_y;
+    ss_x << names.at(n) << "_x: [" << std::fixed << std::setprecision(8);;
+    ss_y << names.at(n) << "_y: [" << std::fixed;
+
     // Sub-sample the time and values
     int keep_every = 10;
     std::vector<double> times_skipped;
     for (size_t t = 0; t < total_times.at(n).timestamps.size(); t++) {
+      ss_x << total_times.at(n).timestamps[t] << ", ";
       if (t % keep_every == 0) {
         times_skipped.push_back(total_times.at(n).timestamps.at(t));
       }
     }
     std::vector<double> values_skipped;
     for (size_t t = 0; t < total_times.at(n).values.size(); t++) {
+      ss_y << total_times.at(n).values[t] << ", ";
       if (t % keep_every == 0) {
         values_skipped.push_back(total_times.at(n).values.at(t));
       }
     }
+
+    ss_x << "]" << std::endl;
+    ss_y << "]" << std::endl;
+    PRINT_INFO("%s %s", ss_x.str().c_str(), ss_y.str().c_str());
 
     // Paramters for our line
     std::map<std::string, std::string> params;

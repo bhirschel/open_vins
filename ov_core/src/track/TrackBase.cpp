@@ -105,11 +105,15 @@ void TrackBase::display_history(cv::Mat &img_out, int r1, int g1, int b1, int r2
 
   // Cache the images to prevent other threads from editing while we viz (which can be slow)
   std::map<size_t, cv::Mat> img_last_cache, img_mask_last_cache;
+  std::map<size_t, double> orig_image_timestamps_cache;
   for (auto const &pair : img_last) {
     img_last_cache.insert({pair.first, pair.second.clone()});
   }
   for (auto const &pair : img_mask_last) {
     img_mask_last_cache.insert({pair.first, pair.second.clone()});
+  }
+  for (auto const &pair : orig_image_timestamps) {
+    orig_image_timestamps_cache.insert({pair.first, pair.second});
   }
 
   // Get the largest width and height
@@ -172,7 +176,7 @@ void TrackBase::display_history(cv::Mat &img_out, int r1, int g1, int b1, int r2
         if (feat->uvs[pair.first].size() - z > maxtracks)
           break;
         // Calculate what color we are drawing in
-        bool is_stereo = (feat->uvs.size() > 1);
+        bool is_stereo = (feat->uvs.size() > 1); // feature has been seen from more than one camera
         int color_r = (is_stereo ? b2 : r2) - (int)((is_stereo ? b1 : r1) / feat->uvs[pair.first].size() * z);
         int color_g = (is_stereo ? r2 : g2) - (int)((is_stereo ? r1 : g1) / feat->uvs[pair.first].size() * z);
         int color_b = (is_stereo ? g2 : b2) - (int)((is_stereo ? g1 : b1) / feat->uvs[pair.first].size() * z);
@@ -199,6 +203,135 @@ void TrackBase::display_history(cv::Mat &img_out, int r1, int g1, int b1, int r2
     } else {
       cv::putText(img_temp, overlay, txtpt, cv::FONT_HERSHEY_COMPLEX_SMALL, (is_small) ? 1.5 : 3.0, cv::Scalar(0, 0, 255), 3);
     }
+    // Draw unique timestamp of the camera
+    auto small_txt_bottom_pt = cv::Point(5, max_height - 5);
+    cv::putText(img_temp, std::to_string(orig_image_timestamps_cache[pair.first]), small_txt_bottom_pt, cv::FONT_HERSHEY_COMPLEX_SMALL, 1.25,
+                cv::Scalar(0, 255, 0), 2);
+    // Overlay the mask
+    cv::Mat mask = cv::Mat::zeros(img_mask_last_cache[pair.first].rows, img_mask_last_cache[pair.first].cols, CV_8UC3);
+    mask.setTo(cv::Scalar(0, 0, 255), img_mask_last_cache[pair.first]);
+    cv::addWeighted(mask, 0.1, img_temp, 1.0, 0.0, img_temp);
+    // Replace the output image
+    img_temp.copyTo(img_out(cv::Rect(max_width * index_cam, 0, img_last_cache[pair.first].cols, img_last_cache[pair.first].rows)));
+    index_cam++;
+  }
+}
+
+void TrackBase::display_msckf_history(cv::Mat &img_out, int r1, int g1, int b1, int r2, int g2, int b2, const std::vector<std::shared_ptr<Feature>>& good_features_MSCKF_feat_copy, std::vector<int> &cameras,
+                                      std::string overlay) {
+  // Cache the images to prevent other threads from editing while we viz (which can be slow)
+  std::map<size_t, cv::Mat> img_last_cache, img_mask_last_cache;
+  std::map<size_t, double> orig_image_timestamps_cache;
+  for (auto const &pair : img_last) {
+    img_last_cache.insert({pair.first, pair.second.clone()});
+  }
+  for (auto const &pair : img_mask_last) {
+    img_mask_last_cache.insert({pair.first, pair.second.clone()});
+  }
+  for (auto const &pair : orig_image_timestamps) {
+    orig_image_timestamps_cache.insert({pair.first, pair.second});
+  }
+
+  // Get the largest width and height
+  int max_width = -1;
+  int max_height = -1;
+  for (auto const &pair : img_last_cache) {
+    if (max_width < pair.second.cols)
+      max_width = pair.second.cols;
+    if (max_height < pair.second.rows)
+      max_height = pair.second.rows;
+  }
+
+  // Return if we didn't have a last image
+  if (max_width == -1 || max_height == -1)
+    return;
+
+  // If the image is "small" thus we should use smaller display codes
+  bool is_small = (std::min(max_width, max_height) < 400);
+
+  // If the image is "new" (or resized) then draw the images from scratch
+  // Otherwise, we grab the subset of the main image and draw on top of it
+  bool image_new = ((int)img_last_cache.size() * max_width != img_out.cols || max_height != img_out.rows);
+
+  // If new, then resize the current image
+  if (image_new)
+    img_out = cv::Mat(max_height, (int)img_last_cache.size() * max_width, CV_8UC3, cv::Scalar(0, 0, 0));
+
+  // Loop through each image, and draw
+  int index_cam = 0;
+  for (auto const &pair : img_last_cache) {
+    // Lock this image
+    std::lock_guard<std::mutex> lck(mtx_feeds.at(pair.first));
+    // select the subset of the image
+    cv::Mat img_temp;
+    if (image_new)
+      cv::cvtColor(img_last_cache[pair.first], img_temp, cv::COLOR_GRAY2RGB);
+    else
+      img_temp = img_out(cv::Rect(max_width * index_cam, 0, max_width, max_height));
+
+    // draw, loop through all keypoints
+    for (auto &feat : good_features_MSCKF_feat_copy) {
+      // Skip if the feature is null
+      if (feat == nullptr) {
+//        PRINT_INFO(YELLOW "Feature is nullptr\n" RESET)
+        continue;
+      } else if (feat->uvs[pair.first].empty()) {
+//        PRINT_INFO(YELLOW "Feature is empty\n" RESET)
+        continue;
+      } else if (feat->to_delete) {
+//        PRINT_INFO(YELLOW "Feature has to delete flag\n" RESET)
+        continue;
+      }
+
+      // Put a box around the feature position
+      cv::Point2f pt_c = {feat->uvs[pair.first].back().x(), feat->uvs[pair.first].back().y()};
+      cv::Point2f pt_l_top = cv::Point2f(pt_c.x - ((is_small) ? 3 : 5), pt_c.y - ((is_small) ? 3 : 5));
+      cv::Point2f pt_l_bot = cv::Point2f(pt_c.x + ((is_small) ? 3 : 5), pt_c.y + ((is_small) ? 3 : 5));
+      cv::rectangle(img_temp, pt_l_top, pt_l_bot, cv::Scalar(62, 175, 252), 1);
+      cv::circle(img_temp, pt_c, (is_small) ? 1 : 2, cv::Scalar(62, 175, 252), cv::FILLED);
+
+      bool is_stereo = (feat->uvs.size() > 1); // feature has been seen from more than one camera
+
+      // Draw the history of this point (start at the last inserted one)
+      for (size_t z = feat->uvs[pair.first].size() - 1; z > 0; z--) {
+
+        // Calculate what color we are drawing in
+        int color_r = (is_stereo ? b2 : r2) - (int)((is_stereo ? b1 : r1) / feat->uvs[pair.first].size() * z);
+        int color_g = (is_stereo ? r2 : g2) - (int)((is_stereo ? r1 : g1) / feat->uvs[pair.first].size() * z);
+        int color_b = (is_stereo ? g2 : b2) - (int)((is_stereo ? g1 : b1) / feat->uvs[pair.first].size() * z);
+
+        // Draw current point
+        cv::Point2f pt_c(feat->uvs[pair.first].at(z)(0), feat->uvs[pair.first].at(z)(1));
+        cv::circle(img_temp, pt_c, (is_small) ? 1 : 2, cv::Scalar(color_r, color_g, color_b), cv::FILLED);
+
+        // If there is a next point, then display the line from this point to the next
+        if (z + 1 < feat->uvs[pair.first].size()) {
+          cv::Point2f pt_n(feat->uvs[pair.first].at(z + 1)(0), feat->uvs[pair.first].at(z + 1)(1));
+          cv::line(img_temp, pt_c, pt_n, cv::Scalar(color_r, color_g, color_b));
+        }
+
+        // If the first point, display the ID
+//        if (z == feat->uvs[pair.first].size() - 1) {
+          // cv::putText(img_out0, std::to_string(feat->featid), pt_c, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1,
+          // cv::LINE_AA); cv::circle(img_out0, pt_c, 2, cv::Scalar(color,color,255), CV_FILLED);
+//        }
+      }
+    }
+    // Draw what camera this is
+    auto txtpt = (is_small) ? cv::Point(10, 30) : cv::Point(30, 60);
+    if (overlay == "") {
+      auto color = std::find(cameras.begin(), cameras.end(), pair.first) != cameras.end() ? cv::Scalar(0, 255, 0) : cv::Scalar(62, 175, 252);
+      cv::putText(img_temp, "CAM:" + std::to_string((int)pair.first), txtpt, cv::FONT_HERSHEY_COMPLEX_SMALL, (is_small) ? 1.5 : 3.0,
+                  color, 3);
+    } else {
+      cv::putText(img_temp, overlay, txtpt, cv::FONT_HERSHEY_COMPLEX_SMALL, (is_small) ? 1.5 : 3.0, cv::Scalar(0, 0, 255), 3);
+    }
+
+    // Draw unique timestamp of the camera
+    auto small_txt_bottom_pt = cv::Point(5, max_height - 5);
+    cv::putText(img_temp, std::to_string(orig_image_timestamps_cache[pair.first]), small_txt_bottom_pt, cv::FONT_HERSHEY_COMPLEX_SMALL, 1.25,
+                cv::Scalar(0, 255, 0), 2);
+
     // Overlay the mask
     cv::Mat mask = cv::Mat::zeros(img_mask_last_cache[pair.first].rows, img_mask_last_cache[pair.first].cols, CV_8UC3);
     mask.setTo(cv::Scalar(0, 0, 255), img_mask_last_cache[pair.first]);

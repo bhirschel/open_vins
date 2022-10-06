@@ -97,6 +97,18 @@ struct VioManagerOptions {
   /// The path to the file we will record the timing information into
   std::string record_timing_filepath = "ov_msckf_timing.txt";
 
+  /// If we should record feature tracking stats to file
+  bool record_feature_tracking_stats = false;
+
+  /// The path to the file we will record the feature tracking stats into
+  std::string record_feature_stats_filepath = "ov_msckf_feature_stats.txt";
+
+  /// Whether to remove features that were used for EKF measurement update
+  bool delete_used_features = true;
+
+  /// Frame ID for rviz visualization
+  std::string frame_id = "world";
+
   /**
    * @brief This function will load print out all estimator settings loaded.
    * This allows for visual checking that everything was loaded properly from ROS/CMD parsers.
@@ -116,6 +128,10 @@ struct VioManagerOptions {
       parser->parse_config("zupt_only_at_beginning", zupt_only_at_beginning);
       parser->parse_config("record_timing_information", record_timing_information);
       parser->parse_config("record_timing_filepath", record_timing_filepath);
+      parser->parse_config("record_feature_tracking_stats", record_feature_tracking_stats);
+      parser->parse_config("record_feature_stats_filepath", record_feature_stats_filepath);
+      parser->parse_config("delete_used_features", delete_used_features);
+      parser->parse_config("frame_id", frame_id);
     }
     PRINT_DEBUG("  - dt_slam_delay: %.1f\n", dt_slam_delay);
     PRINT_DEBUG("  - zero_velocity_update: %d\n", try_zupt);
@@ -123,8 +139,12 @@ struct VioManagerOptions {
     PRINT_DEBUG("  - zupt_noise_multiplier: %.2f\n", zupt_noise_multiplier);
     PRINT_DEBUG("  - zupt_max_disparity: %.4f\n", zupt_max_disparity);
     PRINT_DEBUG("  - zupt_only_at_beginning?: %d\n", zupt_only_at_beginning);
-    PRINT_DEBUG("  - record timing?: %d\n", (int)record_timing_information);
+    PRINT_DEBUG("  - record timing?: %s\n", record_timing_information ? "true" : "false");
     PRINT_DEBUG("  - record timing filepath: %s\n", record_timing_filepath.c_str());
+    PRINT_DEBUG("  - record feature tracking stats?: %s\n", record_feature_tracking_stats ? "true" : "false");
+    PRINT_DEBUG("  - record feature stats filepath: %s\n", record_feature_stats_filepath.c_str());
+    PRINT_DEBUG("  - delete used features?: %s\n", delete_used_features ? "true" : "false");
+    PRINT_DEBUG("  - frame ID: %s\n", frame_id.c_str());
   }
 
   // NOISE / CHI2 ============================
@@ -205,6 +225,9 @@ struct VioManagerOptions {
   /// Mask images for each camera
   std::map<size_t, cv::Mat> masks;
 
+  /// Rotation of each camera as preprocessing (0=0°, 1=90°, 2=180°, 3=270°), indexed by cam ID
+  std::map<size_t, uint8_t> image_stream_rotations;
+
   /**
    * @brief This function will load and print all state parameters (e.g. sensor extrinsics)
    * This allows for visual checking that everything was loaded properly from ROS/CMD parsers.
@@ -216,6 +239,9 @@ struct VioManagerOptions {
       parser->parse_config("gravity_mag", gravity_mag);
       parser->parse_config("max_cameras", state_options.num_cameras); // might be redundant
       parser->parse_config("downsample_cameras", downsample_cameras); // might be redundant
+
+      parser->parse_config("use_mask", use_mask);
+
       for (int i = 0; i < state_options.num_cameras; i++) {
 
         // Time offset (use the first one)
@@ -248,14 +274,29 @@ struct VioManagerOptions {
         matrix_wh.at(1) /= (downsample_cameras) ? 2.0 : 1.0;
         std::pair<int, int> wh(matrix_wh.at(0), matrix_wh.at(1));
 
+        // Synchronization
+//        std::vector<int> matrix_sync {-1};
+//        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "sync_with", matrix_sync, false);
+//        camera_sync.insert({(size_t)i, std::vector<int>(matrix_sync)});
+
+        // Image stream rotation
+        std::vector<int> rotation = {0};
+        parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "rotation", rotation, false);
+        image_stream_rotations.insert({i, rotation.at(0)});
+
         // Extrinsics
         Eigen::Matrix4d T_CtoI = Eigen::Matrix4d::Identity();
         parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "T_imu_cam", T_CtoI);
 
         // Load these into our state
         Eigen::Matrix<double, 7, 1> cam_eigen;
+        // Take the rotational part of the cam-to-IMU transformation matrix, transpose it to IMU-to-cam, convert it to
+        // quaternion and save the four values to cam_eigen(0)-cam_eigen(3)
         cam_eigen.block(0, 0, 4, 1) = ov_core::rot_2_quat(T_CtoI.block(0, 0, 3, 3).transpose());
+        // Take the negative rotational part of the IMU-to-cam transformation and multiply it with the positional vector
+        // of the IMU in camera coordinates, resulting in the coordinates of the camera in the IMU frame
         cam_eigen.block(4, 0, 3, 1) = -T_CtoI.block(0, 0, 3, 3).transpose() * T_CtoI.block(0, 3, 3, 1);
+        // --> state is composed of rotation from IMU to cam and of position of cam in IMU frame
 
         // Create intrinsics model
         if (dist_model == "equidistant") {
@@ -266,13 +307,12 @@ struct VioManagerOptions {
           camera_intrinsics.at(i)->set_value(cam_calib);
         }
         camera_extrinsics.insert({i, cam_eigen});
-      }
-      parser->parse_config("use_mask", use_mask);
-      if (use_mask) {
-        for (int i = 0; i < state_options.num_cameras; i++) {
+
+        // Robot mask
+        if (use_mask) {
           std::string mask_path;
           std::string mask_node = "mask" + std::to_string(i);
-          parser->parse_config(mask_node, mask_path);
+          parser->parse_external("relative_config_imucam", "cam" + std::to_string(i), "mask_path", mask_path, "mask.png");
           std::string total_mask_path = parser->get_config_folder() + mask_path;
           if (!boost::filesystem::exists(total_mask_path)) {
             PRINT_ERROR(RED "VioManager(): invalid mask path:\n" RESET);

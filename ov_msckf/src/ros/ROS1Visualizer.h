@@ -83,7 +83,7 @@ public:
   /**
    * @brief Will visualize the system if we have new things
    */
-  void visualize();
+  void visualize(std::vector<int> &cameras);
 
   /**
    * @brief Will publish our odometry message for the current timestep.
@@ -110,8 +110,11 @@ protected:
   /// Publish the current state
   void publish_state();
 
+  /// Publish currently used msckf features in the image
+  void publish_msckf_images(std::vector<int> &cameras);
+
   /// Publish the active tracking image
-  void publish_images();
+  void publish_history_images();
 
   /// Publish current features
   void publish_features();
@@ -132,7 +135,7 @@ protected:
   std::shared_ptr<Simulator> _sim;
 
   // Our publishers
-  image_transport::Publisher it_pub_tracks, it_pub_loop_img_depth, it_pub_loop_img_depth_color;
+  image_transport::Publisher it_pub_tracks, it_pub_msckf_img, it_pub_loop_img_depth, it_pub_loop_img_depth_color;
   ros::Publisher pub_poseimu, pub_odomimu, pub_pathimu;
   ros::Publisher pub_points_msckf, pub_points_slam, pub_points_aruco, pub_points_sim;
   ros::Publisher pub_loop_pose, pub_loop_point, pub_loop_extrinsic, pub_loop_intrinsics;

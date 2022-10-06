@@ -87,7 +87,7 @@ void plot_z_positions(const std::string &name, const std::string &color, const s
 int main(int argc, char **argv) {
 
   // Verbosity setting
-  ov_core::Printer::setPrintLevel("INFO");
+  ov_core::Printer::setPrintLevel("DEBUG");
 
   // Ensure we have a path
   if (argc < 3) {
@@ -177,6 +177,9 @@ int main(int argc, char **argv) {
   // Display to the user
   matplotlibcpp::xlabel("x-axis (m)");
   matplotlibcpp::ylabel("y-axis (m)");
+  matplotlibcpp::axis("square");
+  matplotlibcpp::grid(true);
+  matplotlibcpp::legend();
   matplotlibcpp::show(false);
 
   // Plot this figure
@@ -200,6 +203,7 @@ int main(int argc, char **argv) {
   matplotlibcpp::xlabel("timestamp (sec)");
   matplotlibcpp::ylabel("z-axis (m)");
   matplotlibcpp::xlim(0.0, endtime - starttime);
+//  matplotlibcpp::axis("square");
   matplotlibcpp::legend();
   matplotlibcpp::show(true);
 

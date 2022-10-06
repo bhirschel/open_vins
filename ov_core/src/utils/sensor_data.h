@@ -57,6 +57,9 @@ struct CameraData {
   /// Timestamp of the reading
   double timestamp;
 
+  /// Timestamps of each original camera message
+  std::vector<double> timestamps_camera_msgs;
+
   /// Camera ids for each of the images collected
   std::vector<int> sensor_ids;
 

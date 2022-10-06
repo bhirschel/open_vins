@@ -53,6 +53,17 @@ public:
    * @param filename Desired file we want to "record" into
    */
   Recorder(std::string filename) {
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "_%Y-%m-%d-%H-%M-%S");
+    auto date_str = oss.str();
+
+    size_t pos_of_file_ending = filename.rfind(".txt");
+    if (pos_of_file_ending != std::string::npos) {
+      filename.insert(pos_of_file_ending, date_str);
+    }
+
     // Create folder path to this location if not exists
     boost::filesystem::path dir(filename.c_str());
     if (boost::filesystem::create_directories(dir.parent_path())) {

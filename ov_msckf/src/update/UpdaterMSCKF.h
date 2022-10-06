@@ -38,6 +38,7 @@
 
 #include "UpdaterHelper.h"
 #include "UpdaterOptions.h"
+#include "core/VioManagerOptions.h"
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
@@ -85,7 +86,7 @@ public:
    * @param state State of the filter
    * @param feature_vec Features that can be used for update
    */
-  void update(std::shared_ptr<State> state, std::vector<std::shared_ptr<ov_core::Feature>> &feature_vec);
+  size_t update(std::shared_ptr<State> state, std::vector<std::shared_ptr<ov_core::Feature>> &feature_vec);
 
 protected:
   /// Options used during update

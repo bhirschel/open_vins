@@ -88,6 +88,7 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
     // Detect new features
     perform_detection_monocular(imgpyr, mask, pts_last[cam_id], ids_last[cam_id]);
     // Save the current image and pyramid
+    orig_image_timestamps[cam_id] = message.timestamps_camera_msgs[msg_id];
     img_last[cam_id] = img;
     img_pyramid_last[cam_id] = imgpyr;
     img_mask_last[cam_id] = mask;
@@ -110,6 +111,7 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
 
   // If any of our mask is empty, that means we didn't have enough to do ransac, so just return
   if (mask_ll.empty()) {
+    orig_image_timestamps[cam_id] = message.timestamps_camera_msgs[msg_id];
     img_last[cam_id] = img;
     img_pyramid_last[cam_id] = imgpyr;
     img_mask_last[cam_id] = mask;
@@ -147,6 +149,7 @@ void TrackKLT::feed_monocular(const CameraData &message, size_t msg_id) {
   }
 
   // Move forward in time
+  orig_image_timestamps[cam_id] = message.timestamps_camera_msgs[msg_id];
   img_last[cam_id] = img;
   img_pyramid_last[cam_id] = imgpyr;
   img_mask_last[cam_id] = mask;
@@ -209,6 +212,8 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
     perform_detection_stereo(imgpyr_left, imgpyr_right, mask_left, mask_right, cam_id_left, cam_id_right, pts_last[cam_id_left],
                              pts_last[cam_id_right], ids_last[cam_id_left], ids_last[cam_id_right]);
     // Save the current image and pyramid
+    orig_image_timestamps[cam_id_left] = message.timestamps_camera_msgs[msg_id_left];
+    orig_image_timestamps[cam_id_right] = message.timestamps_camera_msgs[msg_id_right];
     img_last[cam_id_left] = img_left;
     img_last[cam_id_right] = img_right;
     img_pyramid_last[cam_id_left] = imgpyr_left;
@@ -257,6 +262,8 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
 
   // If any of our masks are empty, that means we didn't have enough to do ransac, so just return
   if (mask_ll.empty() && mask_rr.empty()) {
+    orig_image_timestamps[cam_id_left] = message.timestamps_camera_msgs[msg_id_left];
+    orig_image_timestamps[cam_id_right] = message.timestamps_camera_msgs[msg_id_right];
     img_last[cam_id_left] = img_left;
     img_last[cam_id_right] = img_right;
     img_pyramid_last[cam_id_left] = imgpyr_left;
@@ -339,6 +346,8 @@ void TrackKLT::feed_stereo(const CameraData &message, size_t msg_id_left, size_t
   }
 
   // Move forward in time
+  orig_image_timestamps[cam_id_left] = message.timestamps_camera_msgs[msg_id_left];
+  orig_image_timestamps[cam_id_right] = message.timestamps_camera_msgs[msg_id_right];
   img_last[cam_id_left] = img_left;
   img_last[cam_id_right] = img_right;
   img_pyramid_last[cam_id_left] = imgpyr_left;

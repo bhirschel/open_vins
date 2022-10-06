@@ -103,6 +103,10 @@ void AlignTrajectory::align_posyaw(const std::vector<Eigen::Matrix<double, 7, 1>
     AlignUtils::align_umeyama(pos_est, pos_gt, R, t, s, true, true);
     assert(s == 1);
   }
+
+  // Level out z-axis to start with 0
+  double z_diff = traj_gt.at(0)[2] - t[2];
+  t[2] += z_diff;
 }
 
 void AlignTrajectory::align_se3_single(const std::vector<Eigen::Matrix<double, 7, 1>> &traj_es,

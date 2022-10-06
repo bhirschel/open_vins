@@ -26,6 +26,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <iomanip>
 
 #include "utils/Loader.h"
 #include "utils/Statistics.h"
@@ -83,14 +84,20 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_PYTHONLIBS
 
+  std::stringstream ss_x;
+  ss_x << "x: [" << std::fixed << std::setprecision(8);
+
   // Sub-sample the time
   int keep_every = 10;
   std::vector<double> times_skipped;
   for (size_t t = 0; t < times.size(); t++) {
+    ss_x << times[t] << ", ";
     if (t % keep_every == 0) {
       times_skipped.push_back(times.at(t));
     }
   }
+  ss_x << "]" << std::endl;
+  PRINT_INFO("%s", ss_x.str().c_str());
 
   // Zero our time arrays
   double starttime1 = (times_skipped.empty()) ? 0 : times_skipped.at(0);
@@ -113,11 +120,16 @@ int main(int argc, char **argv) {
     labels.push_back(names.at(i));
     colors.push_back(colors_valid.at(i % colors_valid.size()));
     std::vector<double> values_skipped;
+    std::stringstream ss_y;
+    ss_y << names.at(i) << "_y: [" << std::fixed;
     for (size_t t = 0; t < stats.at(i).values.size(); t++) {
+      ss_y << stats.at(i).values[t] << ", ";
       if (t % keep_every == 0) {
         values_skipped.push_back(stats.at(i).values.at(t));
       }
     }
+    ss_y << "]" << std::endl;
+    PRINT_INFO("%s", ss_y.str().c_str());
     timings.push_back(values_skipped);
   }
 

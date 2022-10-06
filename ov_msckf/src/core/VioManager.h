@@ -41,6 +41,7 @@
 #include "utils/opencv_lambda_body.h"
 #include "utils/print.h"
 #include "utils/sensor_data.h"
+#include "feat/Feature.h"
 
 #include "init/InertialInitializer.h"
 
@@ -169,6 +170,21 @@ public:
 
   /// Accessor to get the current propagator
   std::shared_ptr<Propagator> get_propagator() { return propagator; }
+
+  /// Get a nice visualization image of what tracks we have
+  cv::Mat get_active_msckf_viz_image(std::vector<int> &cameras) {
+    // Text we will overlay if needed
+    std::string overlay = (did_zupt_update) ? "zvupt" : "";
+    overlay = (!is_initialized_vio) ? "init" : overlay;
+
+    // Get the current active tracks
+    cv::Mat img_history;
+
+    trackFEATS->display_msckf_history(img_history, 255, 255, 0, 255, 255, 255, good_features_MSCKF_feat_copy, cameras, overlay);
+
+    // Finally return the image
+    return img_history;
+  }
 
   /// Get a nice visualization image of what tracks we have
   cv::Mat get_historical_viz_image() {
@@ -339,7 +355,7 @@ protected:
   std::mutex camera_queue_init_mtx;
 
   // Timing statistic file and variables
-  std::ofstream of_statistics;
+  std::ofstream of_statistics, of_feature_stats;
   boost::posix_time::ptime rT1, rT2, rT3, rT4, rT5, rT6, rT7;
 
   // Track how much distance we have traveled
@@ -358,6 +374,7 @@ protected:
 
   // Good features that where used in the last update (used in visualization)
   std::vector<Eigen::Vector3d> good_features_MSCKF;
+  std::vector<std::shared_ptr<ov_core::Feature>> good_features_MSCKF_feat_copy;
 
   /// Feature initializer used to triangulate all active tracks
   std::shared_ptr<ov_core::FeatureInitializer> active_tracks_initializer;

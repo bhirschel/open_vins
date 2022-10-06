@@ -46,7 +46,7 @@ ROS1Visualizer::ROS1Visualizer(std::shared_ptr<ros::NodeHandle> nh, std::shared_
   pub_points_msckf = nh->advertise<sensor_msgs::PointCloud2>("/ov_msckf/points_msckf", 2);
   PRINT_DEBUG("Publishing: %s\n", pub_points_msckf.getTopic().c_str());
   pub_points_slam = nh->advertise<sensor_msgs::PointCloud2>("/ov_msckf/points_slam", 2);
-  PRINT_DEBUG("Publishing: %s\n", pub_points_msckf.getTopic().c_str());
+  PRINT_DEBUG("Publishing: %s\n", pub_points_slam.getTopic().c_str());
   pub_points_aruco = nh->advertise<sensor_msgs::PointCloud2>("/ov_msckf/points_aruco", 2);
   PRINT_DEBUG("Publishing: %s\n", pub_points_aruco.getTopic().c_str());
   pub_points_sim = nh->advertise<sensor_msgs::PointCloud2>("/ov_msckf/points_sim", 2);
@@ -55,6 +55,9 @@ ROS1Visualizer::ROS1Visualizer(std::shared_ptr<ros::NodeHandle> nh, std::shared_
   // Our tracking image
   it_pub_tracks = it.advertise("/ov_msckf/trackhist", 2);
   PRINT_DEBUG("Publishing: %s\n", it_pub_tracks.getTopic().c_str());
+
+  it_pub_msckf_img = it.advertise("/ov_msckf/msckf_img", 2);
+  PRINT_DEBUG("Publishing: %s\n", it_pub_msckf_img.getTopic().c_str());
 
   // Groundtruth publishers
   pub_posegt = nh->advertise<geometry_msgs::PoseStamped>("/ov_msckf/posegt", 2);
@@ -89,35 +92,57 @@ ROS1Visualizer::ROS1Visualizer(std::shared_ptr<ros::NodeHandle> nh, std::shared_
 
   // If the file is not open, then open the file
   if (save_total_state) {
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "_%Y-%m-%d-%H-%M-%S");
+    auto date_str = oss.str();
 
     // files we will open
-    std::string filepath_est, filepath_std, filepath_gt;
-    nh->param<std::string>("filepath_est", filepath_est, "state_estimate.txt");
-    nh->param<std::string>("filepath_std", filepath_std, "state_deviation.txt");
-    nh->param<std::string>("filepath_gt", filepath_gt, "state_groundtruth.txt");
+    std::string filepath_est_error_sim, filepath_std_error_sim, filepath_gt_error_sim;
+    nh->param<std::string>("filepath_est_error_sim", filepath_est_error_sim, "state_estimate.txt");
+    nh->param<std::string>("filepath_std_error_sim", filepath_std_error_sim, "state_deviation.txt");
+    nh->param<std::string>("filepath_gt_error_sim", filepath_gt_error_sim, "state_groundtruth.txt");
+
+    size_t pos_of_file_ending_est = filepath_est_error_sim.rfind(".txt");
+    if (pos_of_file_ending_est != std::string::npos) {
+      filepath_est_error_sim.insert(pos_of_file_ending_est, date_str);
+    }
+    size_t pos_of_file_ending_std = filepath_std_error_sim.rfind(".txt");
+    if (pos_of_file_ending_std != std::string::npos) {
+      filepath_std_error_sim.insert(pos_of_file_ending_std, date_str);
+    }
+    size_t pos_of_file_ending_gt = filepath_gt_error_sim.rfind(".txt");
+    if (pos_of_file_ending_gt != std::string::npos) {
+      filepath_gt_error_sim.insert(pos_of_file_ending_gt, date_str);
+    }
+
+    PRINT_INFO("Preparing file to write state estimate to %s\n", filepath_est_error_sim.c_str());
+    PRINT_INFO("Preparing file to write state deviation to %s\n", filepath_std_error_sim.c_str());
+    PRINT_INFO("Preparing file to write groundtruth to %s\n", filepath_gt_error_sim.c_str());
 
     // If it exists, then delete it
-    if (boost::filesystem::exists(filepath_est))
-      boost::filesystem::remove(filepath_est);
-    if (boost::filesystem::exists(filepath_std))
-      boost::filesystem::remove(filepath_std);
+    if (boost::filesystem::exists(filepath_est_error_sim))
+      boost::filesystem::remove(filepath_est_error_sim);
+    if (boost::filesystem::exists(filepath_std_error_sim))
+      boost::filesystem::remove(filepath_std_error_sim);
 
     // Create folder path to this location if not exists
-    boost::filesystem::create_directories(boost::filesystem::path(filepath_est.c_str()).parent_path());
-    boost::filesystem::create_directories(boost::filesystem::path(filepath_std.c_str()).parent_path());
-    boost::filesystem::create_directories(boost::filesystem::path(filepath_gt.c_str()).parent_path());
+    boost::filesystem::create_directories(boost::filesystem::path(filepath_est_error_sim.c_str()).parent_path());
+    boost::filesystem::create_directories(boost::filesystem::path(filepath_std_error_sim.c_str()).parent_path());
+    boost::filesystem::create_directories(boost::filesystem::path(filepath_gt_error_sim.c_str()).parent_path());
 
     // Open the files
-    of_state_est.open(filepath_est.c_str());
-    of_state_std.open(filepath_std.c_str());
+    of_state_est.open(filepath_est_error_sim.c_str());
+    of_state_std.open(filepath_std_error_sim.c_str());
     of_state_est << "# timestamp(s) q p v bg ba cam_imu_dt num_cam cam0_k cam0_d cam0_rot cam0_trans .... etc" << std::endl;
     of_state_std << "# timestamp(s) q p v bg ba cam_imu_dt num_cam cam0_k cam0_d cam0_rot cam0_trans .... etc" << std::endl;
 
     // Groundtruth if we are simulating
     if (_sim != nullptr) {
-      if (boost::filesystem::exists(filepath_gt))
-        boost::filesystem::remove(filepath_gt);
-      of_state_gt.open(filepath_gt.c_str());
+      if (boost::filesystem::exists(filepath_gt_error_sim))
+        boost::filesystem::remove(filepath_gt_error_sim);
+      of_state_gt.open(filepath_gt_error_sim.c_str());
       of_state_gt << "# timestamp(s) q p v bg ba cam_imu_dt num_cam cam0_k cam0_d cam0_rot cam0_trans .... etc" << std::endl;
     }
   }
@@ -168,7 +193,7 @@ void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> pars
   }
 }
 
-void ROS1Visualizer::visualize() {
+void ROS1Visualizer::visualize(std::vector<int> &cameras) {
 
   // Return if we have already visualized
   if (last_visualization_timestamp == _app->get_state()->_timestamp && _app->initialized())
@@ -179,8 +204,11 @@ void ROS1Visualizer::visualize() {
   boost::posix_time::ptime rT0_1, rT0_2;
   rT0_1 = boost::posix_time::microsec_clock::local_time();
 
-  // publish current image
-  publish_images();
+  // publish current msckf features in image
+  publish_msckf_images(cameras);
+
+  // publish history image
+  publish_history_images();
 
   // Return if we have not inited
   if (!_app->initialized())
@@ -233,7 +261,7 @@ void ROS1Visualizer::visualize_odometry(double timestamp) {
 
     nav_msgs::Odometry odomIinM;
     odomIinM.header.stamp = ros::Time(timestamp);
-    odomIinM.header.frame_id = "global";
+    odomIinM.header.frame_id = _app->get_params().frame_id;
 
     // The POSE component (orientation and position)
     odomIinM.pose.pose.orientation.x = state_plus(0);
@@ -278,7 +306,7 @@ void ROS1Visualizer::visualize_odometry(double timestamp) {
   auto odom_pose = std::make_shared<ov_type::PoseJPL>();
   odom_pose->set_value(state_plus.block(0, 0, 7, 1));
   tf::StampedTransform trans = RosVisualizerHelper::get_stamped_transform_from_pose(odom_pose, false);
-  trans.frame_id_ = "global";
+  trans.frame_id_ = _app->get_params().frame_id;
   trans.child_frame_id_ = "imu";
   if (publish_global2imu_tf) {
     mTfBr->sendTransform(trans);
@@ -386,7 +414,11 @@ void ROS1Visualizer::callback_inertial(const sensor_msgs::Imu::ConstPtr &msg) {
       while (!camera_queue.empty() && camera_queue.at(0).timestamp < timestamp_imu_inC) {
         auto rT0_1 = boost::posix_time::microsec_clock::local_time();
         _app->feed_measurement_camera(camera_queue.at(0));
-        visualize();
+        std::vector<int> cameras;
+        for (auto &id : camera_queue.at(0).sensor_ids) {
+          cameras.push_back(id);
+        }
+        visualize(cameras);
         camera_queue.pop_front();
         auto rT0_2 = boost::posix_time::microsec_clock::local_time();
         double time_total = (rT0_2 - rT0_1).total_microseconds() * 1e-6;
@@ -428,12 +460,29 @@ void ROS1Visualizer::callback_monocular(const sensor_msgs::ImageConstPtr &msg0, 
   ov_core::CameraData message;
   message.timestamp = cv_ptr->header.stamp.toSec();
   message.sensor_ids.push_back(cam_id0);
-  message.images.push_back(cv_ptr->image.clone());
+  message.timestamps_camera_msgs.push_back(msg0->header.stamp.toSec());
+
+  if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+    cv::Mat dst_img;
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+    cv::rotate(cv_ptr->image.clone(), dst_img, flag);
+    message.images.push_back(dst_img);
+  } else {
+    message.images.push_back(cv_ptr->image.clone());
+  }
 
   // Load the mask if we are using it, else it is empty
   // TODO: in the future we should get this from external pixel segmentation
   if (_app->get_params().use_mask) {
-    message.masks.push_back(_app->get_params().masks.at(cam_id0));
+    if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+      cv::Mat rotated_mask, inverted_mask;
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id0), rotated_mask, flag);
+      cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
+      message.masks.push_back(inverted_mask);
+    } else {
+      message.masks.push_back(_app->get_params().masks.at(cam_id0));
+    }
   } else {
     message.masks.push_back(cv::Mat::zeros(cv_ptr->image.rows, cv_ptr->image.cols, CV_8UC1));
   }
@@ -477,15 +526,48 @@ void ROS1Visualizer::callback_stereo(const sensor_msgs::ImageConstPtr &msg0, con
   ov_core::CameraData message;
   message.timestamp = cv_ptr0->header.stamp.toSec();
   message.sensor_ids.push_back(cam_id0);
+  message.timestamps_camera_msgs.push_back(msg0->header.stamp.toSec());
   message.sensor_ids.push_back(cam_id1);
-  message.images.push_back(cv_ptr0->image.clone());
-  message.images.push_back(cv_ptr1->image.clone());
+  message.timestamps_camera_msgs.push_back(msg1->header.stamp.toSec());
+
+  if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+    cv::Mat dst_img;
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+    cv::rotate(cv_ptr0->image.clone(), dst_img, flag);
+    message.images.push_back(dst_img);
+  } else {
+    message.images.push_back(cv_ptr0->image.clone());
+  }
+  if(_app->get_params().image_stream_rotations.at(cam_id1) > 0 && _app->get_params().image_stream_rotations.at(cam_id1) < 4) {
+    cv::Mat dst_img;
+    cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id1 ) - 1);
+    cv::rotate(cv_ptr1->image.clone(), dst_img, flag);
+    message.images.push_back(dst_img);
+  } else {
+    message.images.push_back(cv_ptr1->image.clone());
+  }
 
   // Load the mask if we are using it, else it is empty
   // TODO: in the future we should get this from external pixel segmentation
   if (_app->get_params().use_mask) {
-    message.masks.push_back(_app->get_params().masks.at(cam_id0));
-    message.masks.push_back(_app->get_params().masks.at(cam_id1));
+    if(_app->get_params().image_stream_rotations.at(cam_id0) > 0 && _app->get_params().image_stream_rotations.at(cam_id0) < 4) {
+      cv::Mat rotated_mask, inverted_mask;
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id0 ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id0), rotated_mask, flag);
+      cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
+      message.masks.push_back(inverted_mask);
+    } else {
+      message.masks.push_back(_app->get_params().masks.at(cam_id0));
+    }
+    if(_app->get_params().image_stream_rotations.at(cam_id1) > 0 && _app->get_params().image_stream_rotations.at(cam_id1) < 4) {
+      cv::Mat rotated_mask, inverted_mask;
+      cv::RotateFlags flag = static_cast<cv::RotateFlags>(_app->get_params().image_stream_rotations.at( cam_id1 ) - 1);
+      cv::rotate(_app->get_params().masks.at(cam_id1), rotated_mask, flag);
+      cv::bitwise_not(rotated_mask, inverted_mask); // need to invert because OV takes 0 for valid areas
+      message.masks.push_back(inverted_mask);
+    } else {
+      message.masks.push_back(_app->get_params().masks.at(cam_id1));
+    }
   } else {
     // message.masks.push_back(cv::Mat(cv_ptr0->image.rows, cv_ptr0->image.cols, CV_8UC1, cv::Scalar(255)));
     message.masks.push_back(cv::Mat::zeros(cv_ptr0->image.rows, cv_ptr0->image.cols, CV_8UC1));
@@ -512,7 +594,7 @@ void ROS1Visualizer::publish_state() {
   geometry_msgs::PoseWithCovarianceStamped poseIinM;
   poseIinM.header.stamp = ros::Time(timestamp_inI);
   poseIinM.header.seq = poses_seq_imu;
-  poseIinM.header.frame_id = "global";
+  poseIinM.header.frame_id = _app->get_params().frame_id;
   poseIinM.pose.pose.orientation.x = state->_imu->quat()(0);
   poseIinM.pose.pose.orientation.y = state->_imu->quat()(1);
   poseIinM.pose.pose.orientation.z = state->_imu->quat()(2);
@@ -548,7 +630,7 @@ void ROS1Visualizer::publish_state() {
   nav_msgs::Path arrIMU;
   arrIMU.header.stamp = ros::Time::now();
   arrIMU.header.seq = poses_seq_imu;
-  arrIMU.header.frame_id = "global";
+  arrIMU.header.frame_id = _app->get_params().frame_id;
   for (size_t i = 0; i < poses_imu.size(); i += std::floor((double)poses_imu.size() / 16384.0) + 1) {
     arrIMU.poses.push_back(poses_imu.at(i));
   }
@@ -558,7 +640,26 @@ void ROS1Visualizer::publish_state() {
   poses_seq_imu++;
 }
 
-void ROS1Visualizer::publish_images() {
+void ROS1Visualizer::publish_msckf_images(std::vector<int> &cameras) {
+
+  // Check if we have subscribers
+  if (it_pub_msckf_img.getNumSubscribers() == 0)
+    return;
+
+  // Get our image of history tracks
+  cv::Mat img_history = _app->get_active_msckf_viz_image(cameras);
+
+  // Create our message
+  std_msgs::Header header;
+  header.stamp = ros::Time::now();
+  header.frame_id = "cam0";
+  sensor_msgs::ImagePtr exl_msg = cv_bridge::CvImage(header, "bgr8", img_history).toImageMsg();
+
+  // Publish
+  it_pub_msckf_img.publish(exl_msg);
+}
+
+void ROS1Visualizer::publish_history_images() {
 
   // Check if we have subscribers
   if (it_pub_tracks.getNumSubscribers() == 0)
@@ -586,17 +687,17 @@ void ROS1Visualizer::publish_features() {
 
   // Get our good MSCKF features
   std::vector<Eigen::Vector3d> feats_msckf = _app->get_good_features_MSCKF();
-  sensor_msgs::PointCloud2 cloud = RosVisualizerHelper::get_ros_pointcloud(feats_msckf);
+  sensor_msgs::PointCloud2 cloud = RosVisualizerHelper::get_ros_pointcloud(feats_msckf, _app->get_params().frame_id);
   pub_points_msckf.publish(cloud);
 
   // Get our good SLAM features
   std::vector<Eigen::Vector3d> feats_slam = _app->get_features_SLAM();
-  sensor_msgs::PointCloud2 cloud_SLAM = RosVisualizerHelper::get_ros_pointcloud(feats_slam);
+  sensor_msgs::PointCloud2 cloud_SLAM = RosVisualizerHelper::get_ros_pointcloud(feats_slam, _app->get_params().frame_id);
   pub_points_slam.publish(cloud_SLAM);
 
   // Get our good ARUCO features
   std::vector<Eigen::Vector3d> feats_aruco = _app->get_features_ARUCO();
-  sensor_msgs::PointCloud2 cloud_ARUCO = RosVisualizerHelper::get_ros_pointcloud(feats_aruco);
+  sensor_msgs::PointCloud2 cloud_ARUCO = RosVisualizerHelper::get_ros_pointcloud(feats_aruco, _app->get_params().frame_id);
   pub_points_aruco.publish(cloud_ARUCO);
 
   // Skip the rest of we are not doing simulation
@@ -605,7 +706,7 @@ void ROS1Visualizer::publish_features() {
 
   // Get our good SIMULATION features
   std::vector<Eigen::Vector3d> feats_sim = _sim->get_map_vec();
-  sensor_msgs::PointCloud2 cloud_SIM = RosVisualizerHelper::get_ros_pointcloud(feats_sim);
+  sensor_msgs::PointCloud2 cloud_SIM = RosVisualizerHelper::get_ros_pointcloud(feats_sim, _app->get_params().frame_id);
   pub_points_sim.publish(cloud_SIM);
 }
 
@@ -639,7 +740,7 @@ void ROS1Visualizer::publish_groundtruth() {
   geometry_msgs::PoseStamped poseIinM;
   poseIinM.header.stamp = ros::Time(timestamp_inI);
   poseIinM.header.seq = poses_seq_gt;
-  poseIinM.header.frame_id = "global";
+  poseIinM.header.frame_id = _app->get_params().frame_id;
   poseIinM.pose.orientation.x = state_gt(1, 0);
   poseIinM.pose.orientation.y = state_gt(2, 0);
   poseIinM.pose.orientation.z = state_gt(3, 0);
@@ -658,7 +759,7 @@ void ROS1Visualizer::publish_groundtruth() {
   nav_msgs::Path arrIMU;
   arrIMU.header.stamp = ros::Time::now();
   arrIMU.header.seq = poses_seq_gt;
-  arrIMU.header.frame_id = "global";
+  arrIMU.header.frame_id = _app->get_params().frame_id;
   for (size_t i = 0; i < poses_gt.size(); i += std::floor((double)poses_gt.size() / 16384.0) + 1) {
     arrIMU.poses.push_back(poses_gt.at(i));
   }
@@ -670,7 +771,7 @@ void ROS1Visualizer::publish_groundtruth() {
   // Publish our transform on TF
   tf::StampedTransform trans;
   trans.stamp_ = ros::Time::now();
-  trans.frame_id_ = "global";
+  trans.frame_id_ = _app->get_params().frame_id;
   trans.child_frame_id_ = "truth";
   tf::Quaternion quat(state_gt(1, 0), state_gt(2, 0), state_gt(3, 0), state_gt(4, 0));
   trans.setRotation(quat);
@@ -769,7 +870,7 @@ void ROS1Visualizer::publish_loopclosure_information() {
     // PUBLISH HISTORICAL POSE ESTIMATE
     nav_msgs::Odometry odometry_pose;
     odometry_pose.header = header;
-    odometry_pose.header.frame_id = "global";
+    odometry_pose.header.frame_id = _app->get_params().frame_id;
     odometry_pose.pose.pose.position.x = pos(0);
     odometry_pose.pose.pose.position.y = pos(1);
     odometry_pose.pose.pose.position.z = pos(2);
@@ -814,7 +915,7 @@ void ROS1Visualizer::publish_loopclosure_information() {
     // Construct the message
     sensor_msgs::PointCloud point_cloud;
     point_cloud.header = header;
-    point_cloud.header.frame_id = "global";
+    point_cloud.header.frame_id = _app->get_params().frame_id;
     for (const auto &feattimes : active_tracks_posinG) {
 
       // Get this feature information

@@ -27,6 +27,8 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
 #include <tf/transform_broadcaster.h>
+
+#include <utility>
 #elif ROS_AVAILABLE == 2
 #include <sensor_msgs/msg/point_cloud.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -52,11 +54,11 @@ public:
    * @param feats Vector of features we will convert into ros format
    * @return ROS pointcloud
    */
-  static sensor_msgs::PointCloud2 get_ros_pointcloud(const std::vector<Eigen::Vector3d> &feats) {
+  static sensor_msgs::PointCloud2 get_ros_pointcloud(const std::vector<Eigen::Vector3d> &feats, std::string frame_id) {
 
     // Declare message and sizes
     sensor_msgs::PointCloud2 cloud;
-    cloud.header.frame_id = "global";
+    cloud.header.frame_id = std::move(frame_id);
     cloud.header.stamp = ros::Time::now();
     cloud.width = 3 * feats.size();
     cloud.height = 1;
