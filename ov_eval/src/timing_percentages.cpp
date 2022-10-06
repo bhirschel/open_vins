@@ -138,19 +138,31 @@ int main(int argc, char **argv) {
 #ifdef HAVE_PYTHONLIBS
 
   // Plot line colors
-  std::vector<std::string> colors = {"blue", "red", "black", "green", "cyan", "magenta"};
+  std::vector<std::string> colors = {"#005AA9", "#E6001A", "#99C000", "#EC6500", "cyan", "magenta"};
   std::vector<std::string> linestyle = {"-", "--", "-."};
   assert(algo_timings.size() <= colors.size() * linestyle.size());
 
   // Parameters
   std::map<std::string, std::string> params_rpe;
-  params_rpe.insert({"notch", "false"});
+//  params_rpe.insert({"notch", "False"});
   params_rpe.insert({"sym", ""});
+//  params_rpe.insert({"fontsize", "11"});
+//  params_rpe.insert({"font.family", "serif"});
+
+  std::map<std::string, std::string> text_data;
+  text_data.insert({"fontfamily", "serif"});
+  text_data.insert({"fontsize", "11"});
+
+  std::map<std::string, std::string> font_manager_prop;
+  font_manager_prop.insert({"family", "serif"});
+  font_manager_prop.insert({"size", "11"});
 
   //============================================================
   //============================================================
   // Plot this figure
-  matplotlibcpp::figure_size(1500, 400);
+  float cm = 1/2.54; // 1cm in inches
+  float px = 100; // 1inch in px
+  matplotlibcpp::figure_size((size_t)(18*cm*px), (size_t)(10*cm*px));
 
   // Plot each RPE next to each other
   double width = 0.1 / (algo_timings.size() + 1);
@@ -158,14 +170,23 @@ int main(int argc, char **argv) {
   std::vector<std::string> labels;
   int ct_algo = 0;
   double ct_pos = 0;
+  PRINT_ALL("CPU Percent Usage\n");
   for (auto &algo : algo_timings) {
     // Start based on what algorithm we are doing
     ct_pos = 1 + 1.5 * ct_algo * width;
     yticks.push_back(ct_pos);
-    labels.push_back(algo.first);
+//    labels.push_back(algo.first);
+    labels.push_back("");
     // Plot it!!!
     matplotlibcpp::boxplot(algo.second.at(0).values, ct_pos, width, colors.at(ct_algo % colors.size()),
-                           linestyle.at(ct_algo / colors.size()), params_rpe, false);
+                           linestyle.at(ct_algo / colors.size()), params_rpe, true);
+    std::stringstream ss;
+    ss << algo.first.c_str() << ": [";
+    for (auto &data : algo.second.at(0).values) {
+      ss << data << ", ";
+    }
+    ss << "]" << std::endl;
+    PRINT_ALL("%s", ss.str().c_str());
     // Move forward
     ct_algo++;
   }
@@ -183,10 +204,13 @@ int main(int argc, char **argv) {
   }
 
   // Display to the user
-  matplotlibcpp::ylim(1.0 - 1 * width, ct_pos + 1 * width);
-  matplotlibcpp::yticks(yticks, labels);
-  matplotlibcpp::xlabel("CPU Percent Usage");
+//  matplotlibcpp::ylim(1.0 - 1 * width, ct_pos + 1 * width);
+  matplotlibcpp::xticks(yticks, labels, text_data);
+  matplotlibcpp::yticks(std::vector<int>({0,100,200,300,400,500,600}), text_data);
+  matplotlibcpp::ylim(0, 600);
+  matplotlibcpp::ylabel("CPU Percent Usage", text_data);
   matplotlibcpp::tight_layout();
+  matplotlibcpp::legend();
   matplotlibcpp::show(false);
 
   //============================================================
@@ -200,6 +224,7 @@ int main(int argc, char **argv) {
   labels.clear();
   ct_algo = 0;
   ct_pos = 0;
+  PRINT_ALL("Memory Percent Usage\n");
   for (auto &algo : algo_timings) {
     // Start based on what algorithm we are doing
     ct_pos = 1 + 1.5 * ct_algo * width;
@@ -208,6 +233,13 @@ int main(int argc, char **argv) {
     // Plot it!!!
     matplotlibcpp::boxplot(algo.second.at(1).values, ct_pos, width, colors.at(ct_algo % colors.size()),
                            linestyle.at(ct_algo / colors.size()), params_rpe, false);
+    std::stringstream ss;
+    ss << algo.first.c_str() << ": [";
+    for (auto &data : algo.second.at(1).values) {
+      ss << data << ", ";
+    }
+    ss << "]" << std::endl;
+    PRINT_ALL("%s", ss.str().c_str());
     // Move forward
     ct_algo++;
   }

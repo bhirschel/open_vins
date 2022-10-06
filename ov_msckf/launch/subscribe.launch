@@ -54,10 +54,10 @@
 
     </node>
 
-<!--     <node name="recorder_timing" pkg="ov_eval" type="pid_ros.py" output="screen"> -->
-<!--         <param name="nodes"   type="str" value="/run_subscribe_msckf" /> -->
-<!--         <param name="output"  type="str" value="ov_msckf/computational_load/psutil_log.txt" /> -->
-<!--     </node> -->
+    <node name="recorder_timing" pkg="ov_eval" type="pid_ros.py" output="screen">
+        <param name="nodes"   type="str" value="/run_subscribe_msckf" />
+        <param name="output"  type="str" value="ov_msckf/computational_load/psutil_log.txt" />
+    </node>
 
     <!-- play the dataset -->
     <group if="$(arg dobag)">
