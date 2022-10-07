@@ -117,7 +117,8 @@ if __name__ == '__main__':
             ps_list.append(get_process_ros(node, False))
             try:
                 perc_cpu = ps_list[len(ps_list) - 1].cpu_percent(interval=None)
-                perc_mem = ps_list[len(ps_list) - 1].memory_percent()
+                # perc_mem = ps_list[len(ps_list) - 1].memory_percent()
+                perc_mem = ps_list[len(ps_list) - 1].memory_info()[0] / psutil.virtual_memory()[0]
                 threads = ps_list[len(ps_list) - 1].num_threads()
             except:
                 continue
@@ -133,7 +134,8 @@ if __name__ == '__main__':
             try:
                 # get readings
                 p_cpu = ps_list[i].cpu_percent(interval=None)
-                p_mem = ps_list[i].memory_percent()
+                # p_mem = ps_list[i].memory_percent()
+                p_mem = ps_list[i].memory_info()[0] / psutil.virtual_memory()[0]
                 p_threads = ps_list[i].num_threads()
                 # append to our list
                 perc_cpu.append(p_cpu)

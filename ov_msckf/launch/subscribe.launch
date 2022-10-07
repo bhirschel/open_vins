@@ -54,7 +54,8 @@
 
     </node>
 
-    <node name="recorder_timing" pkg="ov_eval" type="pid_ros.py" output="screen">
+    <arg name="node_start_delay" default="0.1" />
+    <node name="recorder_timing" pkg="ov_eval" type="pid_ros.py" output="screen" launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' ">
         <param name="nodes"   type="str" value="/run_subscribe_msckf" />
         <param name="output"  type="str" value="ov_msckf/computational_load/psutil_log.txt" />
     </node>
