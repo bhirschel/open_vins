@@ -117,7 +117,8 @@ if __name__ == '__main__':
             ps_list.append(get_process_ros(node, False))
             try:
                 perc_cpu = ps_list[len(ps_list) - 1].cpu_percent(interval=None)
-                perc_mem = ps_list[len(ps_list) - 1].memory_percent()
+                # perc_mem = ps_list[len(ps_list) - 1].memory_percent()
+                perc_mem = (ps_list[len(ps_list) - 1].memory_info()[0] / psutil.virtual_memory()[0]) * 100
                 threads = ps_list[len(ps_list) - 1].num_threads()
             except:
                 continue
@@ -133,7 +134,8 @@ if __name__ == '__main__':
             try:
                 # get readings
                 p_cpu = ps_list[i].cpu_percent(interval=None)
-                p_mem = ps_list[i].memory_percent()
+                # p_mem = ps_list[i].memory_percent()
+                p_mem = (ps_list[i].memory_info()[0] / psutil.virtual_memory()[0]) * 100
                 p_threads = ps_list[i].num_threads()
                 # append to our list
                 perc_cpu.append(p_cpu)
@@ -146,12 +148,12 @@ if __name__ == '__main__':
                 threads.append(0)
 
         # print what the total summed value is
-        rospy.loginfo("cpu%% = %.3f | mem%% = %.3f | threads = %d" % (sum(perc_cpu), sum(perc_mem), sum(threads)))
+        rospy.loginfo("cpu%% = %.6f | mem%% = %.6f | threads = %d" % (sum(perc_cpu), sum(perc_mem), sum(threads)))
 
         # save the current stats to file!
-        data = "%.8f %.3f %.3f %d" % (time.time(), sum(perc_cpu), sum(perc_mem), sum(threads))
+        data = "%.8f %.6f %.6f %d" % (time.time(), sum(perc_cpu), sum(perc_mem), sum(threads))
         for i in range(0, len(node_list)):
-            data += " %.3f %.3f %d" % (perc_cpu[i], perc_mem[i], threads[i])
+            data += " %.6f %.6f %d" % (perc_cpu[i], perc_mem[i], threads[i])
         data += "\n"
         file.write(data)
         file.flush()
