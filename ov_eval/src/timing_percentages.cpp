@@ -26,6 +26,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <iomanip>
 
 #include "utils/Loader.h"
 #include "utils/Statistics.h"
@@ -64,6 +65,12 @@ int main(int argc, char **argv) {
     }
   }
   std::sort(path_algorithms.begin(), path_algorithms.end());
+
+  // Prepare export to file
+  std::ofstream timing_ofstream;
+  boost::filesystem::path path_statistics(argv[1]);
+  path_statistics = path_statistics.parent_path().append("computational_load.txt");
+  timing_ofstream.open(path_statistics.c_str(), std::ofstream::out | std::ofstream::trunc);
 
   //===============================================================================
   //===============================================================================
@@ -180,13 +187,15 @@ int main(int argc, char **argv) {
     // Plot it!!!
     matplotlibcpp::boxplot(algo.second.at(0).values, ct_pos, width, colors.at(ct_algo % colors.size()),
                            linestyle.at(ct_algo / colors.size()), params_rpe, true);
-    std::stringstream ss;
-    ss << algo.first.c_str() << ": [";
-    for (auto &data : algo.second.at(0).values) {
-      ss << data << ", ";
+
+    // Export to file
+    std::stringstream ss_cpu;
+    ss_cpu << algo.first << " | cpu | " << std::fixed << std::setprecision(4);
+    for (auto &v : algo.second.at(0).values) {
+      ss_cpu << v << ",";
     }
-    ss << "]" << std::endl;
-    PRINT_ALL("%s", ss.str().c_str());
+    timing_ofstream << ss_cpu.rdbuf() << std::endl;
+    timing_ofstream.flush();
     // Move forward
     ct_algo++;
   }
@@ -233,13 +242,16 @@ int main(int argc, char **argv) {
     // Plot it!!!
     matplotlibcpp::boxplot(algo.second.at(1).values, ct_pos, width, colors.at(ct_algo % colors.size()),
                            linestyle.at(ct_algo / colors.size()), params_rpe, false);
-    std::stringstream ss;
-    ss << algo.first.c_str() << ": [";
-    for (auto &data : algo.second.at(1).values) {
-      ss << data << ", ";
+
+    // Export to file
+    std::stringstream ss_mem;
+    ss_mem << algo.first << " | mem | " << std::fixed << std::setprecision(4);
+    for (auto &v : algo.second.at(1).values) {
+      ss_mem << v << ",";
     }
-    ss << "]" << std::endl;
-    PRINT_ALL("%s", ss.str().c_str());
+    timing_ofstream << ss_mem.rdbuf() << std::endl;
+    timing_ofstream.flush();
+
     // Move forward
     ct_algo++;
   }

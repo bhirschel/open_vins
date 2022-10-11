@@ -23,6 +23,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <string>
+#include <iomanip>
 
 #include "calc/ResultTrajectory.h"
 #include "utils/Loader.h"
@@ -75,6 +76,16 @@ int main(int argc, char **argv) {
   }
   std::sort(path_algorithms.begin(), path_algorithms.end());
 
+  std::ofstream ate_statistics, rmse_statistics, rpe_statistics;
+  boost::filesystem::path path_statistics(path_algos);
+  path_statistics = path_statistics.parent_path().append("error_statistics");
+  boost::filesystem::create_directories(path_statistics);
+  ate_statistics.open((path_statistics / "ate_statistics.txt").c_str(), std::ofstream::out | std::ofstream::trunc);
+  rmse_statistics.open((path_statistics / "rmse_statistics.txt").c_str(), std::ofstream::out | std::ofstream::trunc);
+  rpe_statistics.open((path_statistics / "rpe_statistics.txt").c_str(), std::ofstream::out | std::ofstream::trunc);
+
+  PRINT_INFO("%s\n%s\n%s\n", (path_statistics / "ate_statistics.txt").c_str(), (path_statistics / "rmse_statistics.txt").c_str(), (path_statistics / "rpe_statistics.txt").c_str());
+
   //===============================================================================
   //===============================================================================
   //===============================================================================
@@ -89,7 +100,8 @@ int main(int argc, char **argv) {
 
   // Relative pose error segment lengths
   // std::vector<double> segments = {8.0, 16.0, 24.0, 32.0, 40.0, 48.0};
-  std::vector<double> segments = {7.0, 14.0, 21.0, 28.0, 35.0};
+//  std::vector<double> segments = {7.0, 14.0, 21.0, 28.0, 35.0};
+  std::vector<double> segments = {0.5, 1.0, 2.0, 4.0, 8.0, 10.0};
   // std::vector<double> segments = {10.0, 25.0, 50.0, 75.0, 120.0};
   // std::vector<double> segments = {5.0, 15.0, 30.0, 45.0, 60.0};
   // std::vector<double> segments = {40.0, 60.0, 80.0, 100.0, 120.0};
@@ -215,6 +227,20 @@ int main(int argc, char **argv) {
     ate_2d_dataset_ori.calculate();
     ate_2d_dataset_pos.calculate();
 
+    // Export ATE to file
+    std::stringstream ss_ate_y_ori, ss_ate_y_pos;
+    ss_ate_y_ori << path_algorithms.at(i).filename().string() << " - ATE - y_ori - " << std::fixed << std::setprecision(4);
+    ss_ate_y_pos << path_algorithms.at(i).filename().string() << " - ATE - y_pos - " << std::fixed << std::setprecision(4);
+    for (double value : ate_dataset_ori.values) {
+      ss_ate_y_ori << value << ",";
+    }
+    for (double value : ate_dataset_pos.values) {
+      ss_ate_y_pos << value << ",";
+    }
+//    PRINT_INFO("%s\n%s\n%s\n%s\n", ss_ate_x_ori.str().c_str(), ss_ate_y_ori.str().c_str(), ss_ate_x_pos.str().c_str(), ss_ate_y_pos.str().c_str());
+    ate_statistics << ss_ate_y_ori.rdbuf() << std::endl << ss_ate_y_pos.rdbuf() << std::endl;
+    ate_statistics.flush();
+
     // Print stats for this specific dataset
     std::string prefix = (ate_dataset_ori.mean > 10 || ate_dataset_pos.mean > 10) ? RED : "";
     PRINT_DEBUG("%s\tATE: mean_ori = %.3f | mean_pos = %.3f (%d runs)\n" RESET, prefix.c_str(), ate_dataset_ori.mean, ate_dataset_pos.mean,
@@ -226,9 +252,27 @@ int main(int argc, char **argv) {
     for (auto &seg : rpe_dataset) {
       seg.second.first.calculate();
       seg.second.second.calculate();
-      PRINT_DEBUG("\tRPE: seg %d - mean_ori = %.3f | mean_pos = %.3f (%d samples)\n", (int)seg.first, seg.second.first.mean,
+      PRINT_DEBUG("\tRPE: seg %f.1 - mean_ori = %.3f | mean_pos = %.3f (%d samples)\n", seg.first, seg.second.first.mean,
                   seg.second.second.mean, (int)seg.second.second.values.size());
       // PRINT_DEBUG("RPE: seg %d - std_ori  = %.3f | std_pos  = %.3f\n",(int)seg.first,seg.second.first.std,seg.second.second.std);
+      // Export to file
+      std::stringstream ss_rpe_x_ori, ss_rpe_x_pos, ss_rpe_y_ori, ss_rpe_y_pos;
+      ss_rpe_x_ori << path_algorithms.at(i).filename().string() << " - RPE - seg " << seg.first << " - x_ori - " << std::fixed << std::setprecision(8);
+      ss_rpe_x_pos << path_algorithms.at(i).filename().string() << " - RPE - seg " << seg.first << " - x_pos - " << std::fixed << std::setprecision(8);
+      ss_rpe_y_ori << path_algorithms.at(i).filename().string() << " - RPE - seg " << seg.first << " - y_ori - " << std::fixed << std::setprecision(4);
+      ss_rpe_y_pos << path_algorithms.at(i).filename().string() << " - RPE - seg " << seg.first << " - y_pos - " << std::fixed << std::setprecision(4);
+      for (size_t t = 0; t < seg.second.first.timestamps.size(); ++t) {
+        ss_rpe_x_ori << seg.second.first.timestamps.at(t) << ",";
+        ss_rpe_y_ori << seg.second.first.values.at(t) << ",";
+      }
+      for (size_t t = 0; t < seg.second.second.timestamps.size(); ++t) {
+        ss_rpe_x_pos << seg.second.second.timestamps.at(t) << ",";
+        ss_rpe_y_pos << seg.second.second.values.at(t) << ",";
+      }
+//      PRINT_INFO("%s\n%s\n%s\n%s\n", ss_x1.str().c_str(), ss_y1.str().c_str(), ss_x2.str().c_str(), ss_y2.str().c_str());
+      rpe_statistics << ss_rpe_x_ori.rdbuf() << std::endl << ss_rpe_y_ori.rdbuf() << std::endl;
+      rpe_statistics << ss_rpe_x_pos.rdbuf() << std::endl << ss_rpe_y_pos.rdbuf() << std::endl;
+      rpe_statistics.flush();
     }
 
     // RMSE: Convert into the right format (only use times where all runs have an error)
@@ -309,6 +353,22 @@ int main(int argc, char **argv) {
     matplotlibcpp::tight_layout();
     matplotlibcpp::show(false);
 
+    // Export to file
+    std::stringstream ss_rmse_x_ori, ss_rmse_x_pos, ss_rmse_y_ori, ss_rmse_y_pos;
+    ss_rmse_x_ori << path_algorithms.at(i).filename().string() << " - RMSE - x_ori - " << std::fixed << std::setprecision(8);
+    ss_rmse_x_pos << path_algorithms.at(i).filename().string() << " - RMSE - x_pos - " << std::fixed << std::setprecision(8);
+    ss_rmse_y_ori << path_algorithms.at(i).filename().string() << " - RMSE - y_ori - " << std::fixed << std::setprecision(4);
+    ss_rmse_y_pos << path_algorithms.at(i).filename().string() << " - RMSE - y_pos - " << std::fixed << std::setprecision(4);
+    for (size_t t = 0; t < rmse_ori.timestamps.size(); ++t) {
+      ss_rmse_x_ori << rmse_ori.timestamps.at(t) << ",";
+      ss_rmse_x_pos << rmse_pos.timestamps.at(t) << ",";
+      ss_rmse_y_ori << rmse_ori.values.at(t) << ",";
+      ss_rmse_y_pos << rmse_pos.values.at(t) << ",";
+    }
+//    PRINT_INFO("%s\n%s\n%s\n%s\n", ss_x1.str().c_str(), ss_y1.str().c_str(), ss_x2.str().c_str(), ss_y2.str().c_str());
+    rmse_statistics << ss_rmse_x_ori.rdbuf() << std::endl << ss_rmse_y_ori.rdbuf() << std::endl;
+    rmse_statistics << ss_rmse_x_pos.rdbuf() << std::endl << ss_rmse_y_pos.rdbuf() << std::endl;
+    rmse_statistics.flush();
     //=====================================================
 
     if (!nees_ori.values.empty() && !nees_pos.values.empty()) {
@@ -361,6 +421,11 @@ int main(int argc, char **argv) {
                                                                elm.second.second.timestamps.begin(), elm.second.second.timestamps.end());
     }
   }
+
+  ate_statistics.close();
+  rmse_statistics.close();
+  rpe_statistics.close();
+
   PRINT_DEBUG("\n\n");
 
   // Finally print the ATE for all the runs

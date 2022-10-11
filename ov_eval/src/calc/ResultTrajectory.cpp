@@ -57,8 +57,7 @@ ResultTrajectory::ResultTrajectory(std::string path_est, std::string path_gt, st
   Eigen::Vector4d q_GTtoEST = ov_core::rot_2_quat(R_GTtoEST);
   PRINT_DEBUG("[TRAJ]: q_ESTtoGT = %.3f, %.3f, %.3f, %.3f | p_ESTinGT = %.3f, %.3f, %.3f | s = %.2f\n", q_ESTtoGT(0), q_ESTtoGT(1),
               q_ESTtoGT(2), q_ESTtoGT(3), t_ESTinGT(0), t_ESTinGT(1), t_ESTinGT(2), s_ESTtoGT);
-  // PRINT_DEBUG("[TRAJ]: q_GTtoEST = %.3f, %.3f, %.3f, %.3f | p_GTinEST = %.3f, %.3f, %.3f | s =
-  // %.2f\n",q_GTtoEST(0),q_GTtoEST(1),q_GTtoEST(2),q_GTtoEST(3),t_GTinEST(0),t_GTinEST(1),t_GTinEST(2),s_GTtoEST);
+//   PRINT_DEBUG("[TRAJ]: q_GTtoEST = %.3f, %.3f, %.3f, %.3f | p_GTinEST = %.3f, %.3f, %.3f | s = %.2f\n",q_GTtoEST(0),q_GTtoEST(1),q_GTtoEST(2),q_GTtoEST(3),t_GTinEST(0),t_GTinEST(1),t_GTinEST(2),s_GTtoEST);
 
   // Finally lets calculate the aligned trajectories
   for (size_t i = 0; i < gt_times.size(); i++) {
@@ -256,6 +255,9 @@ void ResultTrajectory::calculate_nees(Statistics &nees_ori, Statistics &nees_pos
     Eigen::Matrix3d e_R =
         ov_core::quat_2_Rot(gt_poses.at(i).block(3, 0, 4, 1)) * ov_core::quat_2_Rot(est_poses.at(i).block(3, 0, 4, 1)).transpose();
     Eigen::Vector3d errori = -ov_core::log_so3(e_R);
+//    std::stringstream ss;
+//    ss << "R_gt: " << gt_poses.at(i).block(3, 0, 4, 1) << " * R_est: " << est_poses.at(i).block(3, 0, 4, 1) << " = e_R: " << e_R << "\nerror: " << errori;
+//    PRINT_INFO("%s", ss.str().c_str());
     // Eigen::Vector4d e_q = Math::quat_multiply(gt_poses_aignedtoEST.at(i).block(3,0,4,1),Math::Inv(est_poses.at(i).block(3,0,4,1)));
     // Eigen::Vector3d errori = 2*e_q.block(0,0,3,1);
     double ori_nees = errori.transpose() * est_covori.at(i).inverse() * errori;

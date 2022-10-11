@@ -26,6 +26,8 @@ using namespace ov_eval;
 void Loader::load_data(std::string path_traj, std::vector<double> &times, std::vector<Eigen::Matrix<double, 7, 1>> &poses,
                        std::vector<Eigen::Matrix3d> &cov_ori, std::vector<Eigen::Matrix3d> &cov_pos) {
 
+  std::locale::global(std::locale("C"));
+
   // Try to open our trajectory file
   std::ifstream file(path_traj);
   if (!file.is_open()) {
@@ -54,7 +56,9 @@ void Loader::load_data(std::string path_traj, std::vector<double> &times, std::v
       if (field.empty() || i >= data.rows())
         continue;
       // save the data to our vector
-      data(i) = std::atof(field.c_str());
+//      data(i) = std::atof(field.c_str());
+      double d = std::stod(field);
+      data[i] = d;
       i++;
     }
 
@@ -109,6 +113,8 @@ void Loader::load_data(std::string path_traj, std::vector<double> &times, std::v
 void Loader::load_data_csv(std::string path_traj, std::vector<double> &times, std::vector<Eigen::Matrix<double, 7, 1>> &poses,
                            std::vector<Eigen::Matrix3d> &cov_ori, std::vector<Eigen::Matrix3d> &cov_pos) {
 
+  std::locale::global(std::locale("C"));
+
   // Try to open our trajectory file
   std::ifstream file(path_traj);
   if (!file.is_open()) {
@@ -137,7 +143,8 @@ void Loader::load_data_csv(std::string path_traj, std::vector<double> &times, st
       if (field.empty() || i >= data.rows())
         continue;
       // save the data to our vector
-      data(i) = std::atof(field.c_str());
+      double d = std::stod(field);
+      data[i] = d;
       i++;
     }
 
@@ -178,6 +185,8 @@ void Loader::load_data_csv(std::string path_traj, std::vector<double> &times, st
 
 void Loader::load_simulation(std::string path, std::vector<Eigen::VectorXd> &values) {
 
+  std::locale::global(std::locale("C"));
+
   // Try to open our trajectory file
   std::ifstream file(path);
   if (!file.is_open()) {
@@ -205,7 +214,8 @@ void Loader::load_simulation(std::string path, std::vector<Eigen::VectorXd> &val
       if (field.empty())
         continue;
       // save the data to our vector
-      vec.push_back(std::atof(field.c_str()));
+      double d = std::stod(field);
+      vec.push_back(d);
     }
 
     // Create eigen vector
@@ -239,6 +249,8 @@ void Loader::load_simulation(std::string path, std::vector<Eigen::VectorXd> &val
 
 void Loader::load_timing_flamegraph(std::string path, std::vector<std::string> &names, std::vector<double> &times,
                                     std::vector<Eigen::VectorXd> &timing_values) {
+
+  std::locale::global(std::locale("C"));
 
   // Try to open our trajectory file
   std::ifstream file(path);
@@ -284,7 +296,8 @@ void Loader::load_timing_flamegraph(std::string path, std::vector<std::string> &
       if (field.empty())
         continue;
       // save the data to our vector
-      vec.push_back(std::atof(field.c_str()));
+      double d = std::stod(field);
+      vec.push_back(d);
     }
 
     // Create eigen vector
@@ -321,6 +334,8 @@ void Loader::load_timing_flamegraph(std::string path, std::vector<std::string> &
 void Loader::load_timing_percent(std::string path, std::vector<double> &times, std::vector<Eigen::Vector3d> &summed_values,
                                  std::vector<Eigen::VectorXd> &node_values) {
 
+  std::locale::global(std::locale("C"));
+
   // Try to open our trajectory file
   std::ifstream file(path);
   if (!file.is_open()) {
@@ -348,7 +363,8 @@ void Loader::load_timing_percent(std::string path, std::vector<double> &times, s
       if (field.empty())
         continue;
       // save the data to our vector
-      vec.push_back(std::atof(field.c_str()));
+      double d = std::stod(field);
+      vec.push_back(d);
     }
 
     // Create eigen vector

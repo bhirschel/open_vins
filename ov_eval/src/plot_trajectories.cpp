@@ -26,6 +26,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <iomanip>
 
 #include "alignment/AlignTrajectory.h"
 #include "alignment/AlignUtils.h"
@@ -96,6 +97,11 @@ int main(int argc, char **argv) {
     PRINT_ERROR(RED "ERROR: rosrun ov_eval plot_trajectories <align_mode> <file_gt.txt> <file_est1.txt> ...  <file_est9.txt>\n" RESET);
     std::exit(EXIT_FAILURE);
   }
+
+  std::ofstream xyz_ofstream;
+  boost::filesystem::path path_statistics(argv[2]);
+  path_statistics = path_statistics.parent_path().parent_path().parent_path().append("xyz_traj.txt");
+  xyz_ofstream.open(path_statistics.c_str(), std::ofstream::out | std::ofstream::trunc);
 
   // Read in all our trajectories from file
   std::vector<std::string> names;
@@ -172,6 +178,18 @@ int main(int argc, char **argv) {
   // Plot the position trajectories
   for (size_t i = 0; i < times.size(); i++) {
     plot_xy_positions(names.at(i), colors.at(i), poses.at(i));
+
+    std::stringstream ss_pos_x, ss_pos_y, ss_pos_z;
+    ss_pos_x << i << " | pos_x | " << std::fixed << std::setprecision(4);
+    ss_pos_y << i << " | pos_y | " << std::fixed << std::setprecision(4);
+    ss_pos_z << i << " | pos_z | " << std::fixed << std::setprecision(4);
+    for (auto &pose : poses.at(i)) {
+      ss_pos_x << pose.x() << ",";
+      ss_pos_y << pose.y() << ",";
+      ss_pos_z << pose.z() << ",";
+    }
+    xyz_ofstream << ss_pos_x.rdbuf() << std::endl << ss_pos_y.rdbuf() << std::endl << ss_pos_z.rdbuf() << std::endl;
+    xyz_ofstream.flush();
   }
 
   // Display to the user
@@ -189,9 +207,14 @@ int main(int argc, char **argv) {
   double starttime = (times.at(0).empty()) ? 0 : times.at(0).at(0);
   double endtime = (times.at(0).empty()) ? 0 : times.at(0).at(times.at(0).size() - 1);
   for (size_t i = 0; i < times.size(); i++) {
+    std::stringstream ss_pos_t;
+    ss_pos_t << i << " | pos_t | " << std::fixed << std::setprecision(8);
     for (size_t j = 0; j < times.at(i).size(); j++) {
       times.at(i).at(j) -= starttime;
+      ss_pos_t << times.at(i).at(j) << ",";
     }
+    xyz_ofstream << ss_pos_t.rdbuf() << std::endl;
+    xyz_ofstream.flush();
   }
 
   // Plot the position trajectories
