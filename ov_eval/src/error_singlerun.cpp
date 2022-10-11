@@ -22,10 +22,12 @@
 #include <Eigen/Eigen>
 #include <boost/filesystem.hpp>
 #include <string>
+#include <iomanip>
 
 #include "calc/ResultTrajectory.h"
 #include "utils/colors.h"
 #include "utils/print.h"
+#include "utils/quat_ops.h"
 
 #ifdef HAVE_PYTHONLIBS
 
@@ -49,43 +51,113 @@ void plot_3errors(ov_eval::Statistics sx, ov_eval::Statistics sy, ov_eval::Stati
   // Plot our error value
   matplotlibcpp::subplot(3, 1, 1);
   matplotlibcpp::plot(sx.timestamps, sx.values, params_value);
-  if (!sx.values_bound.empty()) {
-    matplotlibcpp::plot(sx.timestamps, sx.values_bound, params_bound);
-    for (size_t i = 0; i < sx.timestamps.size(); i++) {
-      sx.values_bound.at(i) *= -1;
-    }
-    matplotlibcpp::plot(sx.timestamps, sx.values_bound, "r--");
-  }
+//  if (!sx.values_bound.empty()) {
+//    matplotlibcpp::plot(sx.timestamps, sx.values_bound, params_bound);
+//    for (size_t i = 0; i < sx.timestamps.size(); i++) {
+//      sx.values_bound.at(i) *= -1;
+//    }
+//    matplotlibcpp::plot(sx.timestamps, sx.values_bound, "r--");
+//  }
 
   // Plot our error value
   matplotlibcpp::subplot(3, 1, 2);
   matplotlibcpp::plot(sy.timestamps, sy.values, params_value);
-  if (!sy.values_bound.empty()) {
-    matplotlibcpp::plot(sy.timestamps, sy.values_bound, params_bound);
-    for (size_t i = 0; i < sy.timestamps.size(); i++) {
-      sy.values_bound.at(i) *= -1;
-    }
-    matplotlibcpp::plot(sy.timestamps, sy.values_bound, "r--");
-  }
+//  if (!sy.values_bound.empty()) {
+//    matplotlibcpp::plot(sy.timestamps, sy.values_bound, params_bound);
+//    for (size_t i = 0; i < sy.timestamps.size(); i++) {
+//      sy.values_bound.at(i) *= -1;
+//    }
+//    matplotlibcpp::plot(sy.timestamps, sy.values_bound, "r--");
+//  }
 
   // Plot our error value
   matplotlibcpp::subplot(3, 1, 3);
   matplotlibcpp::plot(sz.timestamps, sz.values, params_value);
-  if (!sz.values_bound.empty()) {
-    matplotlibcpp::plot(sz.timestamps, sz.values_bound, params_bound);
-    for (size_t i = 0; i < sz.timestamps.size(); i++) {
-      sz.values_bound.at(i) *= -1;
+//  if (!sz.values_bound.empty()) {
+//    matplotlibcpp::plot(sz.timestamps, sz.values_bound, params_bound);
+//    for (size_t i = 0; i < sz.timestamps.size(); i++) {
+//      sz.values_bound.at(i) *= -1;
+//    }
+//    matplotlibcpp::plot(sz.timestamps, sz.values_bound, "r--");
+//  }
+}
+
+void plot_rotation(std::vector<double> times, std::vector<Eigen::Matrix<double, 7, 1>> poses) {
+
+  // Parameters that define the line styles
+  std::map<std::string, std::string> params_value;
+  params_value.insert({"label", "error"});
+  params_value.insert({"linestyle", "-"});
+  params_value.insert({"color", "blue"});
+
+  std::vector<double> rot_x, rot_y, rot_z;
+  for (size_t i = 0; i < poses.size(); ++i) {
+    Eigen::Vector3d rpy = ov_core::rot2rpy(ov_core::quat_2_Rot(poses.at(i).block(3, 0, 4, 1)).transpose());
+    for (size_t idx = 0; idx < 3; idx++) {
+//      while (rpy(idx) < -M_PI) {
+//        rpy(idx) += 2 * M_PI;
+//      }
+//      while (rpy(idx) > M_PI) {
+//        rpy(idx) -= 2 * M_PI;
+//      }
+      rpy(idx) = (180.0 / M_PI) * rpy(idx);
     }
-    matplotlibcpp::plot(sz.timestamps, sz.values_bound, "r--");
+    rot_x.push_back(rpy(0));
+    rot_y.push_back(rpy(1));
+    rot_z.push_back(rpy(2));
+//    PRINT_INFO("x: %.2f; y: %.2f; z: %.2f\n", rpy(0), rpy(1), rpy(2));
   }
+
+
+  std::stringstream ss_t;
+  ss_t << "times=" << std::fixed << std::setprecision(8);
+  for (size_t i = 0; i < times.size(); ++i) {
+    ss_t << times[i] <<",";
+  }
+  PRINT_INFO("%s\n", ss_t.str().c_str());
+
+  std::stringstream ss_x;
+  ss_x << "rot_x=" << std::fixed << std::setprecision(8);
+  for (size_t i = 0; i < rot_x.size(); ++i) {
+    ss_x << rot_x[i] <<",";
+  }
+  PRINT_INFO("%s\n", ss_x.str().c_str());
+
+  std::stringstream ss_y;
+  ss_y << "rot_y=" << std::fixed << std::setprecision(8);
+  for (size_t i = 0; i < rot_y.size(); ++i) {
+    ss_y << rot_y[i] <<",";
+  }
+  PRINT_INFO("%s\n", ss_y.str().c_str());
+
+  std::stringstream ss_z;
+  ss_z << "rot_z=" << std::fixed << std::setprecision(8);
+  for (size_t i = 0; i < rot_z.size(); ++i) {
+    ss_z << rot_z[i] <<",";
+  }
+  PRINT_INFO("%s\n", ss_z.str().c_str());
+
+  // Plot our error value
+  matplotlibcpp::subplot(3, 1, 1);
+  matplotlibcpp::plot(times, rot_x, params_value);
+
+  // Plot our error value
+  matplotlibcpp::subplot(3, 1, 2);
+  matplotlibcpp::plot(times, rot_y, params_value);
+
+  // Plot our error value
+  matplotlibcpp::subplot(3, 1, 3);
+  matplotlibcpp::plot(times, rot_z, params_value);
 }
 
 #endif
 
 int main(int argc, char **argv) {
 
+//  sleep(10);
+
   // Verbosity setting
-  ov_core::Printer::setPrintLevel("INFO");
+  ov_core::Printer::setPrintLevel("DEBUG");
 
   // Ensure we have a path
   if (argc < 4) {
@@ -131,7 +203,8 @@ int main(int argc, char **argv) {
   //===========================================================
 
   // Calculate
-  std::vector<double> segments = {8.0, 16.0, 24.0, 32.0, 40.0};
+//  std::vector<double> segments = {8.0, 16.0, 24.0, 32.0, 40.0};
+  std::vector<double> segments = {0.5, 1.0, 2.0, 4.0, 8.0, 10.0};
   std::map<double, std::pair<ov_eval::Statistics, ov_eval::Statistics>> error_rpe;
   traj.calculate_rpe(segments, error_rpe);
 
@@ -198,58 +271,58 @@ int main(int argc, char **argv) {
   //===========================================================
 
   // Calculate
-  ov_eval::Statistics nees_ori, nees_pos;
-  traj.calculate_nees(nees_ori, nees_pos);
-
-  // Print it
-  PRINT_INFO("======================================\n");
-  PRINT_INFO("Normalized Estimation Error Squared\n");
-  PRINT_INFO("======================================\n");
-  PRINT_INFO("mean_ori = %.3f | mean_pos = %.3f\n", nees_ori.mean, nees_pos.mean);
-  PRINT_INFO("min_ori  = %.3f | min_pos  = %.3f\n", nees_ori.min, nees_pos.min);
-  PRINT_INFO("max_ori  = %.3f | max_pos  = %.3f\n", nees_ori.max, nees_pos.max);
-  PRINT_INFO("std_ori  = %.3f | std_pos  = %.3f\n", nees_ori.std, nees_pos.std);
-  PRINT_INFO("======================================\n");
+//  ov_eval::Statistics nees_ori, nees_pos;
+//  traj.calculate_nees(nees_ori, nees_pos);
+//
+//  // Print it
+//  PRINT_INFO("======================================\n");
+//  PRINT_INFO("Normalized Estimation Error Squared\n");
+//  PRINT_INFO("======================================\n");
+//  PRINT_INFO("mean_ori = %.3f | mean_pos = %.3f\n", nees_ori.mean, nees_pos.mean);
+//  PRINT_INFO("min_ori  = %.3f | min_pos  = %.3f\n", nees_ori.min, nees_pos.min);
+//  PRINT_INFO("max_ori  = %.3f | max_pos  = %.3f\n", nees_ori.max, nees_pos.max);
+//  PRINT_INFO("std_ori  = %.3f | std_pos  = %.3f\n", nees_ori.std, nees_pos.std);
+//  PRINT_INFO("======================================\n");
 
 #ifdef HAVE_PYTHONLIBS
 
-  if (!nees_ori.values.empty() && !nees_pos.values.empty()) {
-    // Zero our time arrays
-    double starttime1 = (nees_ori.timestamps.empty()) ? 0 : nees_ori.timestamps.at(0);
-    double endtime1 = (nees_ori.timestamps.empty()) ? 0 : nees_ori.timestamps.at(nees_ori.timestamps.size() - 1);
-    for (size_t i = 0; i < nees_ori.timestamps.size(); i++) {
-      nees_ori.timestamps.at(i) -= starttime1;
-      nees_pos.timestamps.at(i) -= starttime1;
-    }
-
-    // Plot this figure
-    matplotlibcpp::figure_size(1000, 600);
-
-    // Parameters that define the line styles
-    std::map<std::string, std::string> params_neesp, params_neeso;
-    params_neesp.insert({"label", "nees position"});
-    params_neesp.insert({"linestyle", "-"});
-    params_neesp.insert({"color", "blue"});
-    params_neeso.insert({"label", "nees orientation"});
-    params_neeso.insert({"linestyle", "-"});
-    params_neeso.insert({"color", "blue"});
-
-    // Update the title and axis labels
-    matplotlibcpp::subplot(2, 1, 1);
-    matplotlibcpp::title("Normalized Estimation Error Squared");
-    matplotlibcpp::ylabel("NEES Orientation");
-    matplotlibcpp::plot(nees_ori.timestamps, nees_ori.values, params_neeso);
-    matplotlibcpp::xlim(0.0, endtime1 - starttime1);
-    matplotlibcpp::subplot(2, 1, 2);
-    matplotlibcpp::ylabel("NEES Position");
-    matplotlibcpp::xlabel("dataset time (s)");
-    matplotlibcpp::plot(nees_pos.timestamps, nees_pos.values, params_neesp);
-    matplotlibcpp::xlim(0.0, endtime1 - starttime1);
-
-    // Display to the user
-    matplotlibcpp::tight_layout();
-    matplotlibcpp::show(false);
-  }
+//  if (!nees_ori.values.empty() && !nees_pos.values.empty()) {
+//    // Zero our time arrays
+//    double starttime1 = (nees_ori.timestamps.empty()) ? 0 : nees_ori.timestamps.at(0);
+//    double endtime1 = (nees_ori.timestamps.empty()) ? 0 : nees_ori.timestamps.at(nees_ori.timestamps.size() - 1);
+//    for (size_t i = 0; i < nees_ori.timestamps.size(); i++) {
+//      nees_ori.timestamps.at(i) -= starttime1;
+//      nees_pos.timestamps.at(i) -= starttime1;
+//    }
+//
+//    // Plot this figure
+//    matplotlibcpp::figure_size(1000, 600);
+//
+//    // Parameters that define the line styles
+//    std::map<std::string, std::string> params_neesp, params_neeso;
+//    params_neesp.insert({"label", "nees position"});
+//    params_neesp.insert({"linestyle", "-"});
+//    params_neesp.insert({"color", "blue"});
+//    params_neeso.insert({"label", "nees orientation"});
+//    params_neeso.insert({"linestyle", "-"});
+//    params_neeso.insert({"color", "blue"});
+//
+//    // Update the title and axis labels
+//    matplotlibcpp::subplot(2, 1, 1);
+//    matplotlibcpp::title("Normalized Estimation Error Squared");
+//    matplotlibcpp::ylabel("NEES Orientation");
+//    matplotlibcpp::plot(nees_ori.timestamps, nees_ori.values, params_neeso);
+//    matplotlibcpp::xlim(0.0, endtime1 - starttime1);
+//    matplotlibcpp::subplot(2, 1, 2);
+//    matplotlibcpp::ylabel("NEES Position");
+//    matplotlibcpp::xlabel("dataset time (s)");
+//    matplotlibcpp::plot(nees_pos.timestamps, nees_pos.values, params_neesp);
+//    matplotlibcpp::xlim(0.0, endtime1 - starttime1);
+//
+//    // Display to the user
+//    matplotlibcpp::tight_layout();
+//    matplotlibcpp::show(false);
+//  }
 
 #endif
 
@@ -279,6 +352,47 @@ int main(int argc, char **argv) {
   }
 
 #ifdef HAVE_PYTHONLIBS
+
+  // Plot the raw GT and EST orientations
+  matplotlibcpp::figure_size(1000, 600);
+  plot_rotation(traj.gt_times, traj.gt_poses_aignedtoEST);
+
+  // Update the title and axis labels
+  matplotlibcpp::subplot(3, 1, 1);
+  matplotlibcpp::title("IMU GT Orientation");
+  matplotlibcpp::ylabel("roll angle (deg)");
+//  matplotlibcpp::xlim(0.0, endtime2 - starttime2);
+  matplotlibcpp::subplot(3, 1, 2);
+  matplotlibcpp::ylabel("pitch angle (deg)");
+//  matplotlibcpp::xlim(0.0, endtime2 - starttime2);
+  matplotlibcpp::subplot(3, 1, 3);
+  matplotlibcpp::ylabel("yaw angle (deg)");
+  matplotlibcpp::xlabel("dataset time (s)");
+//  matplotlibcpp::xlim(0.0, endtime2 - starttime2);
+
+  // Display to the user
+  matplotlibcpp::tight_layout();
+  matplotlibcpp::show(false);
+
+  matplotlibcpp::figure_size(1000, 600);
+  plot_rotation(traj.est_times, traj.est_poses);
+
+  // Update the title and axis labels
+  matplotlibcpp::subplot(3, 1, 1);
+  matplotlibcpp::title("IMU EST Orientation");
+  matplotlibcpp::ylabel("roll angle (deg)");
+//  matplotlibcpp::xlim(0.0, endtime2 - starttime2);
+  matplotlibcpp::subplot(3, 1, 2);
+  matplotlibcpp::ylabel("pitch angle (deg)");
+//  matplotlibcpp::xlim(0.0, endtime2 - starttime2);
+  matplotlibcpp::subplot(3, 1, 3);
+  matplotlibcpp::ylabel("yaw angle (deg)");
+  matplotlibcpp::xlabel("dataset time (s)");
+//  matplotlibcpp::xlim(0.0, endtime2 - starttime2);
+
+  // Display to the user
+  matplotlibcpp::tight_layout();
+  matplotlibcpp::show(false);
 
   //=====================================================
   // Plot this figure

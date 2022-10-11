@@ -148,7 +148,6 @@ public:
   void calculate_error(Statistics &posx, Statistics &posy, Statistics &posz, Statistics &orix, Statistics &oriy, Statistics &oriz,
                        Statistics &roll, Statistics &pitch, Statistics &yaw);
 
-protected:
   // Trajectory data (loaded from file and timestamp intersected)
   std::vector<double> est_times, gt_times;
   std::vector<Eigen::Matrix<double, 7, 1>> est_poses, gt_poses;
@@ -157,6 +156,7 @@ protected:
   // Aligned trajectories
   std::vector<Eigen::Matrix<double, 7, 1>> est_poses_aignedtoGT;
   std::vector<Eigen::Matrix<double, 7, 1>> gt_poses_aignedtoEST;
+protected:
 
   /**
    * @brief Gets the indices at the end of subtractories of a given length when starting at each index.

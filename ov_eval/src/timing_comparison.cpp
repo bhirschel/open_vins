@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
   for (size_t n = 0; n < names.size(); n++) {
 
     std::stringstream ss_x, ss_y;
-    ss_x << names.at(n) << "_x: [" << std::fixed << std::setprecision(8);;
+    ss_x << names.at(n) << "_x: [" << std::fixed << std::setprecision(8);
     ss_y << names.at(n) << "_y: [" << std::fixed;
 
     // Sub-sample the time and values
