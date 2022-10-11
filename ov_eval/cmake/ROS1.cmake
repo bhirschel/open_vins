@@ -158,6 +158,14 @@ install(TARGETS timing_comparison
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+add_executable(timing_dataset src/timing_dataset.cpp)
+target_link_libraries(timing_dataset ov_eval_lib ${thirdparty_libraries})
+install(TARGETS timing_dataset
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  )
+
 add_executable(timing_percentages src/timing_percentages.cpp)
 target_link_libraries(timing_percentages ov_eval_lib ${thirdparty_libraries})
 install(TARGETS timing_percentages
