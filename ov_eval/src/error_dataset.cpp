@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
   // Relative pose error segment lengths
   // std::vector<double> segments = {8.0, 16.0, 24.0, 32.0, 40.0, 48.0};
 //  std::vector<double> segments = {7.0, 14.0, 21.0, 28.0, 35.0};
-  std::vector<double> segments = {0.5, 1.0, 2.0, 4.0, 8.0, 10.0};
+  std::vector<double> segments = {0.5, 1.0, 2.0, 4.0};
   // std::vector<double> segments = {10.0, 25.0, 50.0, 75.0, 120.0};
   // std::vector<double> segments = {5.0, 15.0, 30.0, 45.0, 60.0};
   // std::vector<double> segments = {40.0, 60.0, 80.0, 100.0, 120.0};
@@ -119,6 +119,7 @@ int main(int argc, char **argv) {
   //===============================================================================
   //===============================================================================
   //===============================================================================
+  double gt_length;
 
   // Loop through each algorithm type
   for (size_t i = 0; i < path_algorithms.size(); i++) {
@@ -167,6 +168,8 @@ int main(int argc, char **argv) {
       PRINT_DEBUG(RED "\tERROR: No runs found for %s, is the folder structure right??\n" RESET, path_algorithms.at(i).filename().c_str());
       continue;
     }
+
+    std::vector<double> lengths;
 
     // Loop though the different runs for this dataset
     for (auto &path_esttxt : file_paths) {
@@ -219,6 +222,10 @@ int main(int argc, char **argv) {
         rpe_dataset.at(elm.first).second.timestamps.insert(rpe_dataset.at(elm.first).second.timestamps.end(),
                                                            elm.second.second.timestamps.begin(), elm.second.second.timestamps.end());
       }
+
+      // Length
+      lengths.push_back(ov_eval::Loader::get_total_length(traj.est_poses));
+      gt_length = ov_eval::Loader::get_total_length(traj.gt_poses);
     }
 
     // Compute our mean ATE score
@@ -228,17 +235,21 @@ int main(int argc, char **argv) {
     ate_2d_dataset_pos.calculate();
 
     // Export ATE to file
-    std::stringstream ss_ate_y_ori, ss_ate_y_pos;
+    std::stringstream ss_ate_y_ori, ss_ate_y_pos, ss_ate_length;
     ss_ate_y_ori << path_algorithms.at(i).filename().string() << " - ATE - y_ori - " << std::fixed << std::setprecision(4);
     ss_ate_y_pos << path_algorithms.at(i).filename().string() << " - ATE - y_pos - " << std::fixed << std::setprecision(4);
+    ss_ate_length << path_algorithms.at(i).filename().string() << " - ATE - length - " << std::fixed << std::setprecision(4);
     for (double value : ate_dataset_ori.values) {
       ss_ate_y_ori << value << ",";
     }
     for (double value : ate_dataset_pos.values) {
       ss_ate_y_pos << value << ",";
     }
+    for (double value : lengths) {
+      ss_ate_length << value << ",";
+    }
 //    PRINT_INFO("%s\n%s\n%s\n%s\n", ss_ate_x_ori.str().c_str(), ss_ate_y_ori.str().c_str(), ss_ate_x_pos.str().c_str(), ss_ate_y_pos.str().c_str());
-    ate_statistics << ss_ate_y_ori.rdbuf() << std::endl << ss_ate_y_pos.rdbuf() << std::endl;
+    ate_statistics << ss_ate_y_ori.rdbuf() << std::endl << ss_ate_y_pos.rdbuf() << std::endl << ss_ate_length.rdbuf() << std::endl;
     ate_statistics.flush();
 
     // Print stats for this specific dataset
@@ -421,6 +432,12 @@ int main(int argc, char **argv) {
                                                                elm.second.second.timestamps.begin(), elm.second.second.timestamps.end());
     }
   }
+
+  // Export lengths to file
+  std::stringstream ss_ate_length_gt;
+  ss_ate_length_gt << "gt - ATE - length - " << std::fixed << std::setprecision(4) << gt_length;
+  ate_statistics << ss_ate_length_gt.rdbuf() << std::endl;
+  ate_statistics.flush();
 
   ate_statistics.close();
   rmse_statistics.close();
