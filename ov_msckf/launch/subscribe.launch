@@ -16,7 +16,7 @@
 
     <!-- saving trajectory path and timing information -->
     <arg name="save_total_state"          default="false" />
-    <arg name="save_estimation"           default="true" />
+    <arg name="save_estimation"           default="false" />
     <arg name="dotime"                    default="false" />
     <arg name="filepath_est_error_sim"    default="ov_msckf/error_sim/ov_estimate_error_sim.txt" />
     <arg name="filepath_std_error_sim"    default="ov_msckf/error_sim/ov_estimate_std_error_sim.txt" />
@@ -55,10 +55,10 @@
     </node>
 
     <arg name="node_start_delay" default="0.1" />
-    <node name="recorder_timing" pkg="ov_eval" type="pid_ros.py" output="screen" launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' ">
-        <param name="nodes"   type="str" value="/run_subscribe_msckf" />
-        <param name="output"  type="str" value="ov_msckf/computational_load/psutil_log.txt" />
-    </node>
+<!--     <node name="recorder_timing" pkg="ov_eval" type="pid_ros.py" output="screen" launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' "> -->
+<!--         <param name="nodes"   type="str" value="/run_subscribe_msckf" /> -->
+<!--         <param name="output"  type="str" value="ov_msckf/computational_load/psutil_log.txt" /> -->
+<!--     </node> -->
 
     <!-- play the dataset -->
     <group if="$(arg dobag)">

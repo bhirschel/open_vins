@@ -67,9 +67,9 @@ init_dyn_bias_a: [0.0, 0.0, 0.0]
 # ==================================================================
 # ==================================================================
 
-record_timing_information: true # if we want to record timing information of the method
+record_timing_information: false # if we want to record timing information of the method
 record_timing_filepath: "ov_msckf/timing/timing.txt" # https://docs.openvins.com/eval-timing.html#eval-ov-timing-flame
-record_feature_tracking_stats: true
+record_feature_tracking_stats: false
 record_feature_stats_filepath: "ov_msckf/feature_stats/feat_stats.txt"
 
 delete_used_features: true
